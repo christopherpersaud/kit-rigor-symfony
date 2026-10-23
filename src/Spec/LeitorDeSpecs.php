@@ -77,7 +77,7 @@ final class LeitorDeSpecs
     {
         $linhas = [];
         $dentroDeCodigo = false;
-        foreach (preg_split('/\R/', $conteudo) ?: [] as $i => $linha) {
+        foreach (preg_split('/\R/u', $conteudo) ?: [] as $i => $linha) {
             if (u($linha)->trimStart()->startsWith('```')) {
                 $dentroDeCodigo = !$dentroDeCodigo;
 

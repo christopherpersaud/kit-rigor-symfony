@@ -52,6 +52,17 @@ final class LeitorDeSpecsTest extends TestCase
         self::assertSame('ABC', $regras[0]->prefixo());
     }
 
+    /** O ✅ termina no byte 0x85, que é o NEL do \R quando a expressão não é Unicode. */
+    public function testLeDocComCaractereQueTerminaNoByte85(): void
+    {
+        $doc = "# Módulo\n\n- ✅ Registro marcado como excluído\n\n## Regras\n\n### ABC-01 Regra\n\n- **Dado** algo, **quando** faz, **então** acontece.\n";
+
+        self::assertTrue(LeitorDeSpecs::temSecaoRegras($doc));
+        $regras = LeitorDeSpecs::regras('docs/x.md', $doc);
+        self::assertSame(['ABC-01'], array_map(static fn (Regra $r) => $r->id, $regras));
+        self::assertSame('docs/x.md:7', $regras[0]->onde());
+    }
+
     public function testSecaoRegrasSoContaForaDeBlocoDeCodigo(): void
     {
         self::assertTrue(LeitorDeSpecs::temSecaoRegras("# X\n\n## Regras\n"));
