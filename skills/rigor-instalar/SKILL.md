@@ -92,7 +92,9 @@ Leia a saída:
   - ajuste `phpVersion` à versão do `composer.json`;
   - ajuste `containerXmlPath` ao nome do kernel;
   - com Doctrine, copie `templates/referencia/tests/phpstan-object-manager.php` e descomente
-    `doctrine:`.
+    `doctrine:`. Fixe nele a `DATABASE_URL` da plataforma de produção: o tipo que o
+    phpstan-doctrine deduz para as consultas depende dela, e o `.env` versionado (que o CI usa)
+    pode trazer outro banco que o `.env.local`.
 - **PHPStan nível 10:** um projeto que nunca rodou nesse nível costuma ter muitos erros.
   **(usuário)** Escolha entre corrigir já ou começar num nível menor e subir. Baseline e
   comentários de ignorar não entram.
@@ -110,7 +112,16 @@ Leia a saída:
   - fixe a versão do kit igual à do `composer.lock`;
   - ligue `migrations: true` só com Doctrine Migrations, e ajuste `bancos` se a produção não for
     MySQL/MariaDB;
+  - confira se a primeira migration parte de um banco vazio (cria as tabelas que as seguintes
+    alteram). Se não parte, o job de migrations reprova sempre: deixe `migrations: false` com o
+    motivo no arquivo e proponha uma migration inicial como trabalho à parte;
+  - acrescente a `extensoes` toda extensão `ext-*` do `require` do `composer.json` que falte na
+    lista padrão (ex.: `bcmath`), senão o `composer install` do CI falha;
   - ligue `preparo: npm run dev` se os testes funcionais renderizam assets do Encore;
+  - **(usuário)** pergunte se liga a mutação no CI (`mutacao: true`, limite em `mutacao-msi`):
+    o job muta as linhas de `src/Domain` e `src/Entity` mudadas em cada push ou PR e reprova
+    abaixo do limite, contando os mutantes não cobertos. Ligue depois do primeiro CI verde, para
+    a instalação não entrar no diff;
   - se o projeto já tinha um CI, **(usuário)** pergunte se substitui ou se convivem.
 - **Cobertura (`tests/cobertura.php`):** rode `composer cobertura` uma vez com o modelo, que traz
   `total` 0 e nenhum piso.

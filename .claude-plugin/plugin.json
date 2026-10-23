@@ -1,6 +1,6 @@
 {
     "name": "kit-rigor-symfony",
-    "version": "0.1.1",
+    "version": "0.2.0",
     "description": "Skills do kit de rigor para Symfony: instalar o kit, spec de regra de negócio com rastreabilidade e teste de mutação.",
     "author": {
         "name": "Christopher Persaud"

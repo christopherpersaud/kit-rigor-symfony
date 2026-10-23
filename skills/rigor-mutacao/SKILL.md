@@ -1,6 +1,6 @@
 ---
 name: rigor-mutacao
-description: Teste de mutação com Infection num projeto com o kit de rigor - quando recomendar, como rodar só nas linhas alteradas (composer mutacao:diff) ou em arquivos inteiros (composer mutacao), e como tratar mutantes que escaparam. Use quando o usuário pedir mutação, Infection ou "testar os testes", e ao fechar um turno que mudou PHP em src/ para decidir a recomendação. Nunca rode mutação por iniciativa própria.
+description: Teste de mutação com Infection num projeto com o kit de rigor - quando roda (no CI, se o projeto ligou o job de mutação, ou só a pedido do usuário), como rodar nas linhas alteradas (composer mutacao:diff) ou em arquivos inteiros (composer mutacao), e como tratar mutantes que escaparam ou são equivalentes. Use quando o usuário pedir mutação, Infection ou "testar os testes", ao terminar uma mudança em src/Domain ou src/Entity num projeto com a mutação no CI, e ao fechar um turno que mudou PHP em src/ para decidir a recomendação.
 ---
 
 # Teste de mutação
@@ -12,7 +12,21 @@ conferiu o resultado.
 
 ## Quando roda
 
-**Só quando o usuário manda.** Nunca no hook, nunca no CI e nunca por iniciativa própria.
+Nunca no hook de fim de turno. O resto depende do `.github/workflows/ci.yml` do projeto.
+
+### Com a mutação no CI (`mutacao: true`)
+
+- **O job do CI** muta as linhas de `src/Domain` e `src/Entity` que o push ou o pull request
+  adicionou ou alterou e reprova abaixo do `mutacao-msi` (90% por padrão).
+- **Os mutantes não cobertos contam.** Quem edita uma linha antiga que nenhum teste roda escreve
+  o teste dela; é assim que o legado ganha teste aos poucos, só onde se trabalha.
+- **Antes de dizer que terminou** uma mudança em `src/Domain` ou `src/Entity`, rode
+  `composer mutacao:diff` e chegue ao mesmo limite, para o push não reprovar no CI. Não precisa
+  de pedido do usuário.
+
+### Sem a mutação no CI
+
+**Só quando o usuário manda.** Nunca por iniciativa própria.
 
 Todo turno que mudou PHP em `src/` termina com **uma linha de recomendação**, mesmo quando a
 resposta é não:
@@ -51,7 +65,11 @@ Para cada mutante que escapou:
      aquele arquivo para ver o mutante morrer.
    - **Equivalente:** o mutante não muda o comportamento observável. Por exemplo, um `?? 1`
      num valor que a validação garante não nulo, ou um `finally` cuja trava se solta sozinha.
-     Explique o porquê ao usuário em uma linha. Não escreva teste para ele.
+     Não escreva teste para ele. Explique o porquê ao usuário em uma linha.
+     - Com a mutação no CI, ele derruba o MSI. Primeiro tente tirar a redundância que o torna
+       equivalente: um valor padrão que a validação seguinte já cobre, uma conversão repetida.
+     - Se não der, ponha `// @infection-ignore-all: <motivo>` na linha de cima da instrução e
+       mostre ao usuário. Manter um ignore é decisão dele.
 3. Código que só os testes usam: proponha apagar em vez de testar.
 
 ## Se um mutante for pulado por tempo

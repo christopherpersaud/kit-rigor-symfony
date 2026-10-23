@@ -1,6 +1,7 @@
-# Workflow reutilizável do kit: o check completo numa máquina limpa, a trava de cobertura e as
-# migrations do banco vazio até a última. O projeto chama com `uses:` (modelo em
-# templates/projeto/.github/workflows/ci.yml) e passa só o que difere do padrão.
+# Workflow reutilizável do kit: o check completo numa máquina limpa, a trava de cobertura, as
+# migrations do banco vazio até a última e, se o projeto ligar, a mutação nas linhas mudadas. O
+# projeto chama com `uses:` (modelo em templates/projeto/.github/workflows/ci.yml) e passa só o
+# que difere do padrão.
 #
 # Os testes usam o .env e o .env.test versionados (SQLite nos testes): não há segredo a configurar.
 # Os passos de Node só rodam quando o projeto tem package-lock.json.
@@ -49,6 +50,18 @@ on:
             extensoes-migrations:
                 type: string
                 default: ctype, curl, dom, iconv, intl, mbstring, openssl, pdo_mysql, xml, zip
+            mutacao:
+                description: Roda o Infection nas linhas de src/Domain e src/Entity mudadas pelo push ou pelo pull request e reprova abaixo de mutacao-msi.
+                type: boolean
+                default: false
+            mutacao-msi:
+                description: MSI mínimo do job de mutação, contando os mutantes não cobertos (--min-msi).
+                type: number
+                default: 90
+            comando-mutacao:
+                description: O Infection do projeto; o job acrescenta as opções do diff e do limite.
+                type: string
+                default: composer mutacao --
 
 permissions:
     contents: read
@@ -134,6 +147,83 @@ jobs:
 
             - name: Cobertura e trava
               run: ${{ inputs.comando-cobertura }}
+
+    mutacao:
+        name: mutação no diff
+        if: inputs.mutacao
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        # Muta só as linhas de src/Domain e src/Entity (infection.json5) que o push ou o pull request
+        # adicionou ou alterou, e reprova abaixo de mutacao-msi. Conta também os mutantes não
+        # cobertos: quem edita uma linha antiga sem teste escreve o teste dela. Os mutantes que
+        # escaparam saem no log e como anotações no diff.
+        steps:
+            - uses: actions/checkout@v7
+              with:
+                  # O Infection compara com a base pelo merge-base: precisa do histórico.
+                  fetch-depth: 0
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ inputs.php-version }}
+                  extensions: ${{ inputs.extensoes }}
+                  coverage: pcov
+                  tools: composer:v2
+
+            - uses: actions/setup-node@v7
+              if: hashFiles('package-lock.json') != ''
+              with:
+                  node-version: ${{ inputs.node-version }}
+                  cache: npm
+
+            - name: Cache do Composer
+              uses: actions/cache@v6
+              with:
+                  path: ~/.composer/cache/files
+                  key: composer-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-
+
+            - name: Dependências
+              run: |
+                  composer install --no-interaction --no-progress --prefer-dist
+                  if [ -f package-lock.json ]; then npm ci; fi
+
+            - name: Preparo
+              if: inputs.preparo != ''
+              run: ${{ inputs.preparo }}
+
+            # Pull request: a branch de destino. Push: o commit anterior ao push. Branch nova ou
+            # push forçado sem o commit anterior no histórico: não há base, e o job não muta nada.
+            - name: Base do diff
+              id: base
+              env:
+                  EVENTO: ${{ github.event_name }}
+                  DESTINO: ${{ github.base_ref }}
+                  ANTERIOR: ${{ github.event.before }}
+                  PADRAO: ${{ github.event.repository.default_branch }}
+              run: |
+                  if [ "$EVENTO" = pull_request ]; then
+                      base="origin/$DESTINO"
+                  elif [ "$EVENTO" = push ]; then
+                      base="$ANTERIOR"
+                  else
+                      base="origin/$PADRAO"
+                  fi
+                  if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+                      echo "::notice::Sem commit de base para o diff ($EVENTO); a mutação não roda neste evento."
+                      base=""
+                  fi
+                  echo "base=$base" >> "$GITHUB_OUTPUT"
+
+            - name: Mutação nas linhas mudadas
+              if: steps.base.outputs.base != ''
+              env:
+                  BASE: ${{ steps.base.outputs.base }}
+              run: >-
+                  ${{ inputs.comando-mutacao }}
+                  --git-diff-lines --git-diff-base="$BASE"
+                  --min-msi=${{ inputs.mutacao-msi }} --ignore-msi-with-no-mutations
+                  --show-mutations=max
 
     migrations:
         name: migrations no ${{ matrix.banco.nome }}

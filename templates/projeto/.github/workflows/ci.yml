@@ -17,11 +17,15 @@ permissions:
 
 jobs:
     rigor:
-        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.1.0).
-        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.1.0
+        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.2.0).
+        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.2.0
         with:
             php-version: '8.5'
             # Testes funcionais que renderizam as tags do Encore precisam do build de dev.
             # preparo: npm run dev
             # Com Doctrine Migrations: banco vazio até a última migration, no MySQL e no MariaDB.
             # migrations: true
+            # Mutação nas linhas de src/Domain e src/Entity mudadas pelo push ou pelo PR; reprova
+            # abaixo do limite, contando os mutantes não cobertos. Ligue depois do primeiro CI verde.
+            # mutacao: true
+            # mutacao-msi: 90

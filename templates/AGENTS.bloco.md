@@ -99,7 +99,8 @@ Two levels, so the end of a turn stays fast and the slow parts still run on ever
   workflow on every push to the main branch and every PR): `check:rapido` plus the slow parts
   (production build). When the project has Doctrine Migrations, a second job runs every
   migration on an empty database and `doctrine:schema:validate` without `--skip-sync`, so an
-  entity changed without a migration fails there. A third job, `composer cobertura`
+  entity changed without a migration fails there. When the project turns it on, a mutation job
+  runs on the changed lines (see "Mutation testing" below). Another job, `composer cobertura`
   (`vendor/bin/rigor-cobertura`), runs the suite with pcov and enforces `tests/cobertura.php`:
   a floor for all of `src/`, a floor per folder (measured coverage rounded down minus a 2-point
   margin) and no file with code at 0%. New code ships with its tests, so this never needs a
@@ -113,27 +114,27 @@ CI went green.
 **Mutation testing** (Infection, `infection.json5`, `src/Domain` and `src/Entity`; skill
 `rigor-mutacao`) changes the code (flips a condition, drops a call, shifts a boundary) and runs
 the test cases that cover the mutated line; a mutant that survives is behaviour no test proves.
-**It never runs on its own:** not in the Stop hook, not in the CI, not on the agent's
-initiative. It runs only when the user says so:
+It never runs in the Stop hook. Where it runs depends on the project's CI
+(`.github/workflows/ci.yml`):
 
-- **On the change (the default, before a push):** `composer mutacao:diff` mutates only the
-  lines of `src/Domain` and `src/Entity` added or changed against the main branch, committed or
-  not.
-- **On whole files:** `composer mutacao -- src/Domain/X/Service/Y.php src/Entity/Z.php` (paths
-  separated by spaces). About 2 minutes a file; for a large change in a class of dense rules.
-  Never the whole of `src/Domain` and `src/Entity` at once.
-
-When it runs, kill each escaped mutant with a test that asserts the behaviour, or explain why it
-is equivalent.
-
-**End every turn that changed PHP code in `src/` with a one-line mutation recommendation**, even
-when the answer is no:
-
-- **Recommend it** when the change touches code with dense rules: conditions, limits and
-  boundaries, calculations, rounding, tax rules, numbering, state transitions, money. Name the
-  files and give the command.
-- **Don't recommend it** for wiring, renames, moved classes, templates, copy or config, and
-  say why in a few words.
+- **CI mutation on (`mutacao: true`):** a CI job mutates the lines of `src/Domain` and
+  `src/Entity` added or changed by the push or PR and fails below `mutacao-msi` (default 90%).
+  Uncovered mutants count against it: editing an old line that no test runs means writing its
+  test. So, before saying a task that changed `src/Domain` or `src/Entity` is done, run
+  `composer mutacao:diff` yourself and get it to the same threshold. Kill each escaped mutant
+  with a test that asserts the behaviour. For an equivalent mutant, first remove the redundancy
+  that makes it equivalent; if that is not possible, put `// @infection-ignore-all: <reason>` on
+  the statement and tell the user (an ignore is the user's call to keep).
+- **CI mutation off:** it runs only when the user says so, never on the agent's initiative:
+  `composer mutacao:diff` (the change against the main branch) or
+  `composer mutacao -- src/Domain/X/Service/Y.php src/Entity/Z.php` (whole files, about 2
+  minutes a file; never all of `src/Domain` and `src/Entity` at once). End every turn that
+  changed PHP code in `src/` with a one-line mutation recommendation, even when the answer is
+  no: recommend it for dense rules (conditions, limits and boundaries, calculations, rounding,
+  tax rules, numbering, state transitions, money), naming the files and the command; don't
+  recommend it for wiring, renames, moved classes, templates, copy or config, and say why in a
+  few words. When it runs, kill each escaped mutant with a test or explain why it is
+  equivalent.
 
 ## Static analysis
 

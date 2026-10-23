@@ -17,7 +17,7 @@ and a reusable GitHub Actions workflow. Docs and messages are in Brazilian Portu
 | **Verificação no fim do turno** | O hook `Stop` do Claude Code e do Codex roda o `composer check:rapido` se algo mudou desde o último verde; se falhar, o agente continua o turno até corrigir. | `vendor/bin/rigor-hook-stop`, `vendor/bin/rigor-verificar` |
 | **Trava de cobertura** | Piso por pasta, piso total e nenhum arquivo a 0%; os pisos só sobem. | `vendor/bin/rigor-cobertura` |
 | **Regras de arquitetura** | phpat dentro do PHPStan: camadas, UseCase `final`, controller fino, mapa de dependência entre módulos. | `KitRigor\Arquitetura\RegrasSymfony` |
-| **CI reutilizável** | Check completo, cobertura e migrations num banco vazio (MySQL e MariaDB), chamado com `uses:`. | `.github/workflows/php-check.yml` |
+| **CI reutilizável** | Check completo, cobertura, migrations num banco vazio (MySQL e MariaDB) e, opcional, mutação nas linhas mudadas, chamado com `uses:`. | `.github/workflows/php-check.yml` |
 | **Instruções para o agente** | Bloco do `AGENTS.md` (lido pelo Codex direto e pelo Claude via `CLAUDE.md` → `@AGENTS.md`). | `templates/AGENTS.bloco.md` |
 | **Skills** | `rigor-instalar`, `rigor-spec`, `rigor-mutacao`, no formato `SKILL.md` que os dois agentes leem. | `skills/` |
 
