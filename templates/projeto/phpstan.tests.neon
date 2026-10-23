@@ -1,0 +1,10 @@
+# Testes no nível 6: pega teste quebrado (método inexistente, tipo errado) sem exigir tipar cada
+# JSON decodificado nas asserções. Cache separado do src/.
+includes:
+    - phpstan.base.neon
+
+parameters:
+    level: 6
+    paths:
+        - tests
+    tmpDir: var/cache/phpstan-tests

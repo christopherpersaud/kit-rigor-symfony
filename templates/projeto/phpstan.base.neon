@@ -1,0 +1,14 @@
+# Configuração comum das duas análises: src/ (phpstan.dist.neon, nível 10) e tests/
+# (phpstan.tests.neon, nível 6). O `composer phpstan` roda as duas. As extensões (symfony, doctrine,
+# phpunit, phpat) entram sozinhas pelo phpstan/extension-installer.
+parameters:
+    # Analisa com a versão de PHP do composer.json: aceita e confere os recursos dela e acusa o que
+    # ela depreciou. Ajuste ao projeto (80400 para PHP 8.4, 80500 para 8.5).
+    phpVersion: 80500
+    symfony:
+        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+        # consoleApplicationLoader: tests/phpstan-console-loader.php
+    # Com o Doctrine ORM instalado: descomente e copie o loader de
+    # vendor/christopherpersaud/kit-rigor-symfony/templates/referencia/tests/phpstan-object-manager.php
+    # doctrine:
+    #     objectManagerLoader: tests/phpstan-object-manager.php

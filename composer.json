@@ -1,0 +1,61 @@
+{
+    "name": "christopherpersaud/kit-rigor-symfony",
+    "description": "Specs com rastreabilidade, testes dourados, verificação no fim do turno do agente (Claude Code e Codex), trava de cobertura, regras de arquitetura e CI reutilizável para projetos Symfony.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["symfony", "testing", "phpstan", "phpat", "infection", "claude-code", "codex", "agents", "spec"],
+    "authors": [
+        {
+            "name": "Christopher Persaud"
+        }
+    ],
+    "require": {
+        "php": ">=8.4",
+        "composer-runtime-api": "^2.2",
+        "phpunit/phpunit": "^12.0 || ^13.0",
+        "symfony/string": "^7.3 || ^8.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpat/phpat": "^0.12.5",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0"
+    },
+    "suggest": {
+        "brianium/paratest": "Roda a suíte em paralelo; o bin/rigor-cobertura usa quando está instalado.",
+        "infection/infection": "Teste de mutação (composer mutacao e mutacao:diff).",
+        "phpat/phpat": "Regras de arquitetura (KitRigor\\Arquitetura\\RegrasSymfony) dentro do PHPStan."
+    },
+    "autoload": {
+        "psr-4": {
+            "KitRigor\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "KitRigor\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/rigor",
+        "bin/rigor-verificar",
+        "bin/rigor-cobertura",
+        "bin/rigor-hook-stop"
+    ],
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "phpstan/extension-installer": false
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "cs": "php-cs-fixer fix --dry-run --diff --show-progress=none",
+        "check": [
+            "@cs",
+            "@phpstan",
+            "@test"
+        ]
+    }
+}

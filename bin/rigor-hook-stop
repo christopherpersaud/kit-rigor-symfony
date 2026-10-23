@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+// Hook de fim de turno do Claude Code (.claude/settings.json) e do Codex (.codex/hooks.json): roda
+// a verificação se algo mudou e, se falhar, devolve o erro ao agente para o turno continuar até
+// corrigir. Contrato e limites em KitRigor\Hook\Stop.
+
+declare(strict_types=1);
+
+use KitRigor\Config;
+use KitRigor\Hook\Stop;
+use KitRigor\Verificar\Verificador;
+
+require $_composer_autoload_path ?? __DIR__.'/../vendor/autoload.php';
+
+$config = Config::doProjeto();
+$saida = (new Stop($config, new Verificador($config)))->executar((string) stream_get_contents(STDIN));
+if (null !== $saida) {
+    echo $saida, "\n";
+}
+exit(0);

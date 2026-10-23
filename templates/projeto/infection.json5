@@ -1,0 +1,28 @@
+{
+    // Teste de mutação nas regras de negócio: o Infection muda o código (troca > por >=, apaga
+    // uma chamada, inverte um if...) e roda os testes que cobrem a linha. Mutante que sobrevive é
+    // comportamento que nenhum teste prova. Só roda quando o usuário pede (AGENTS.md, bloco do kit,
+    // "Mutation testing"): `composer mutacao:diff` ou `composer mutacao -- <arquivos>`.
+    // Controllers, Forms e Repositories ficam de fora: são ligação entre peças, cobertas pelos
+    // testes funcionais, e só gerariam ruído.
+    $schema: "vendor/infection/infection/resources/schema.json",
+    source: {
+        directories: ["src/Domain", "src/Entity"],
+    },
+    // O composer mutacao passa --only-covering-test-cases: cada mutante roda só os casos de teste
+    // que passam pela linha mutada. Mesmo assim, uma classe coberta por muitos testes funcionais
+    // soma mais de 30 s, e com timeout menor o Infection pula o mutante ("required more time than
+    // configured") em vez de testá-lo.
+    timeout: 120,
+    threads: "max",
+    tmpDir: "var/infection",
+    logs: {
+        text: "var/infection/infection.log",
+        html: "var/infection/infection.html",
+        summary: "var/infection/resumo.log",
+    },
+    mutators: {
+        "@default": true,
+    },
+    testFramework: "phpunit",
+}

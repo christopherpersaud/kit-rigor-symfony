@@ -1,0 +1,27 @@
+# O check completo, numa máquina limpa, em cada push na master e em cada pull request. Os jobs
+# vêm do workflow reutilizável do kit; aqui ficam só as escolhas do projeto. O fim de turno do
+# agente roda só o check rápido (vendor/bin/rigor-verificar); o que é lento fica aqui.
+name: CI
+
+on:
+    push:
+        branches: [master]
+    pull_request:
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    rigor:
+        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.1.0).
+        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.1.0
+        with:
+            php-version: '8.5'
+            # Testes funcionais que renderizam as tags do Encore precisam do build de dev.
+            # preparo: npm run dev
+            # Com Doctrine Migrations: banco vazio até a última migration, no MySQL e no MariaDB.
+            # migrations: true

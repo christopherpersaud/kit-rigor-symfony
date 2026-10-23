@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Antes do push, a mesma verificação do fim de turno do agente (vendor/bin/rigor-verificar): vale
+# para qualquer agente e para quem digita à mão. Sai na hora se nada mudou desde o último verde.
+# Liga com: git config core.hooksPath .githooks
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+[[ "${VERIFICAR_DESLIGADO:-}" == 1 ]] && exit 0
+exec vendor/bin/rigor-verificar

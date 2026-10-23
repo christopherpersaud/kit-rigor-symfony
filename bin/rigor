@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+// Instala ou atualiza o kit no projeto (KitRigor\Instalador\Instalador). Nunca sobrescreve um
+// arquivo do projeto: o que já existe e difere do modelo é só relatado.
+//
+//   vendor/bin/rigor instalar              instala ou atualiza
+//   vendor/bin/rigor instalar --simular    mostra o que faria, sem gravar nada
+
+declare(strict_types=1);
+
+use KitRigor\Config;
+use KitRigor\Instalador\Instalador;
+
+require $_composer_autoload_path ?? __DIR__.'/../vendor/autoload.php';
+
+$argumentos = is_array($_SERVER['argv'] ?? null) ? array_values(array_filter($_SERVER['argv'], is_string(...))) : [];
+
+$comando = $argumentos[1] ?? '';
+if ('instalar' !== $comando) {
+    fwrite(STDERR, "Uso: vendor/bin/rigor instalar [--simular]\n");
+    exit('' === $comando || in_array($comando, ['-h', '--help', 'ajuda'], true) ? 0 : 1);
+}
+
+$simular = in_array('--simular', $argumentos, true);
+$acoes = (new Instalador(Config::doProjeto()->raiz, dirname(__DIR__), $simular))->instalar();
+
+echo $simular ? "Simulação: nada foi gravado.\n\n" : '';
+foreach ($acoes as $acao) {
+    echo $acao, "\n";
+}
+
+$revisar = array_filter($acoes, static fn ($acao) => $acao->pedeRevisao());
+echo "\n", [] === $revisar
+    ? "Pronto. Rode composer check:rapido.\n"
+    : sprintf("%d item(ns) pedem revisão à mão (difere/falta). A skill rigor-instalar guia o ajuste.\n", count($revisar));

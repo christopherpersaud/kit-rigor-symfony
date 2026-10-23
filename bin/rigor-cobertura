@@ -1,0 +1,61 @@
+#!/usr/bin/env php
+<?php
+
+// Roda a suíte inteira com cobertura de linhas (paratest se estiver instalado, senão PHPUnit) e
+// confere a trava do projeto (extra.rigor.cobertura.trava, por padrão tests/cobertura.php). Feito
+// para o CI, não para o fim do turno: com o driver de cobertura a suíte fica bem mais lenta. À mão:
+// `composer cobertura`. Argumentos extras vão para o PHPUnit/paratest.
+//
+// Precisa de pcov (ou xdebug) no PHP: sem driver de cobertura, falha em vez de pular a trava. Sai
+// com o código do PHPUnit se algum teste falhar, 1 se a trava reprovar e 0 se passar.
+
+declare(strict_types=1);
+
+use KitRigor\Cobertura\Trava;
+use KitRigor\Config;
+
+require $_composer_autoload_path ?? __DIR__.'/../vendor/autoload.php';
+
+$argumentos = is_array($_SERVER['argv'] ?? null) ? array_values(array_filter($_SERVER['argv'], is_string(...))) : [];
+
+$config = Config::doProjeto();
+chdir($config->raiz);
+
+if (!extension_loaded('pcov') && !extension_loaded('xdebug')) {
+    fwrite(STDERR, "rigor-cobertura: sem driver de cobertura no PHP. Instale o pcov (ex.: apt install php8.5-pcov).\n");
+    exit(1);
+}
+
+$trava = @include $config->caminho($config->travaCobertura);
+if (!is_array($trava)) {
+    fwrite(STDERR, sprintf("rigor-cobertura: falta a trava %s (modelo em vendor/christopherpersaud/kit-rigor-symfony/templates/projeto/tests/cobertura.php).\n", $config->travaCobertura));
+    exit(1);
+}
+
+@mkdir($config->caminho('var/cobertura'), 0o777, true);
+$clover = sprintf('%s/clover-%d.xml', $config->caminho('var/cobertura'), getmypid());
+$executor = is_file($config->caminho('vendor/bin/paratest')) ? 'vendor/bin/paratest' : 'vendor/bin/phpunit';
+$comando = [PHP_BINARY, '-d', 'pcov.enabled=1', '-d', 'pcov.directory='.$config->caminho($config->fonteCobertura), $executor, '--coverage-clover', $clover, ...array_slice($argumentos, 1)];
+$ambiente = getenv() + ['XDEBUG_MODE' => 'coverage'];
+$phpunit = proc_open($comando, [STDIN, STDOUT, STDERR], $pipes, $config->raiz, $ambiente);
+$saida = false === $phpunit ? 1 : proc_close($phpunit);
+if (0 !== $saida) {
+    @unlink($clover);
+    exit($saida);
+}
+
+$relatorio = (string) @file_get_contents($clover);
+@unlink($clover);
+/** @var array{margem: int, total: int, padrao: int, pisos: array<string, int>, sem_teste: array<string, string>} $trava */
+$resultado = (new Trava($trava, $config->raiz, $config->fonteCobertura, $config->agrupar))->conferir($relatorio);
+
+echo "\n", implode("\n", $resultado->relatorio), "\n";
+foreach ($resultado->avisos as $aviso) {
+    echo "\nrigor-cobertura: aviso: ", $aviso;
+}
+if (!$resultado->passou()) {
+    fwrite(STDERR, "\n\nrigor-cobertura: a trava de cobertura reprovou:\n  - ".implode("\n  - ", $resultado->erros)
+        ."\nEscreva os testes que faltam. Baixar um piso ou pôr um arquivo na lista sem_teste é decisão do usuário.\n");
+    exit(1);
+}
+echo "\n\nrigor-cobertura: trava de cobertura ok.\n";

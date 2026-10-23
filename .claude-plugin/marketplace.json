@@ -1,0 +1,13 @@
+{
+    "name": "kit-rigor-symfony",
+    "owner": {
+        "name": "Christopher Persaud"
+    },
+    "plugins": [
+        {
+            "name": "kit-rigor-symfony",
+            "source": "./",
+            "description": "Skills do kit de rigor para Symfony: instalar o kit, spec de regra de negócio com rastreabilidade e teste de mutação."
+        }
+    ]
+}

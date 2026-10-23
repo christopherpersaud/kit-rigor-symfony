@@ -1,0 +1,197 @@
+# Workflow reutilizável do kit: o check completo numa máquina limpa, a trava de cobertura e as
+# migrations do banco vazio até a última. O projeto chama com `uses:` (modelo em
+# templates/projeto/.github/workflows/ci.yml) e passa só o que difere do padrão.
+#
+# Os testes usam o .env e o .env.test versionados (SQLite nos testes): não há segredo a configurar.
+# Os passos de Node só rodam quando o projeto tem package-lock.json.
+name: Rigor (reutilizável)
+
+on:
+    workflow_call:
+        inputs:
+            php-version:
+                description: Versão do PHP.
+                type: string
+                default: '8.5'
+            extensoes:
+                description: Extensões do PHP (setup-php) nos jobs de check e cobertura.
+                type: string
+                default: ctype, curl, dom, gd, iconv, intl, libxml, mbstring, openssl, pdo_sqlite, simplexml, sqlite3, xml, xmlwriter, zip
+            node-version:
+                description: Versão do Node, usada só se houver package-lock.json.
+                type: string
+                default: '22'
+            preparo:
+                description: Comando depois das dependências, antes dos testes (ex. npm run dev, para os testes funcionais que renderizam as tags do Encore).
+                type: string
+                default: ''
+            comando-check:
+                description: O check completo.
+                type: string
+                default: composer check
+            cobertura:
+                description: Roda o job de cobertura (composer cobertura, com pcov).
+                type: boolean
+                default: true
+            comando-cobertura:
+                type: string
+                default: composer cobertura
+            migrations:
+                description: Roda as migrations do Doctrine num banco vazio e confere o banco contra as entidades.
+                type: boolean
+                default: false
+            bancos:
+                description: 'Bancos da matriz de migrations, JSON: [{"nome", "imagem", "saude"}].'
+                type: string
+                default: >-
+                    [{"nome": "MySQL 8.4", "imagem": "mysql:8.4", "saude": "mysqladmin ping -h 127.0.0.1 -proot"},
+                     {"nome": "MariaDB 11.8", "imagem": "mariadb:11.8", "saude": "healthcheck.sh --connect --innodb_initialized"}]
+            extensoes-migrations:
+                type: string
+                default: ctype, curl, dom, iconv, intl, mbstring, openssl, pdo_mysql, xml, zip
+
+permissions:
+    contents: read
+
+jobs:
+    check:
+        name: ${{ inputs.comando-check }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ inputs.php-version }}
+                  extensions: ${{ inputs.extensoes }}
+                  coverage: none
+                  tools: composer:v2
+
+            - uses: actions/setup-node@v7
+              if: hashFiles('package-lock.json') != ''
+              with:
+                  node-version: ${{ inputs.node-version }}
+                  cache: npm
+
+            - name: Cache do Composer
+              uses: actions/cache@v6
+              with:
+                  path: ~/.composer/cache/files
+                  key: composer-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-
+
+            - name: Dependências
+              run: |
+                  composer install --no-interaction --no-progress --prefer-dist
+                  if [ -f package-lock.json ]; then npm ci; fi
+
+            - name: Preparo
+              if: inputs.preparo != ''
+              run: ${{ inputs.preparo }}
+
+            - name: Check completo
+              run: ${{ inputs.comando-check }}
+
+    cobertura:
+        name: cobertura
+        if: inputs.cobertura
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        # A suíte com pcov e a trava de tests/cobertura.php (vendor/bin/rigor-cobertura). Fica fora
+        # do check rápido porque a medição deixa a suíte bem mais lenta; aqui roda em paralelo.
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ inputs.php-version }}
+                  extensions: ${{ inputs.extensoes }}
+                  coverage: pcov
+                  tools: composer:v2
+
+            - uses: actions/setup-node@v7
+              if: hashFiles('package-lock.json') != ''
+              with:
+                  node-version: ${{ inputs.node-version }}
+                  cache: npm
+
+            - name: Cache do Composer
+              uses: actions/cache@v6
+              with:
+                  path: ~/.composer/cache/files
+                  key: composer-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-
+
+            - name: Dependências
+              run: |
+                  composer install --no-interaction --no-progress --prefer-dist
+                  if [ -f package-lock.json ]; then npm ci; fi
+
+            - name: Preparo
+              if: inputs.preparo != ''
+              run: ${{ inputs.preparo }}
+
+            - name: Cobertura e trava
+              run: ${{ inputs.comando-cobertura }}
+
+    migrations:
+        name: migrations no ${{ matrix.banco.nome }}
+        if: inputs.migrations
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+        # Os testes montam o banco em SQLite a partir das entidades; só aqui as migrations rodam de
+        # verdade, do banco vazio até a última. A URL vai sem serverVersion, para o DBAL detectar o
+        # servidor: um serverVersion de MySQL apontando para MariaDB acusa diferença falsa em toda
+        # coluna anulável e JSON.
+        strategy:
+            fail-fast: false
+            matrix:
+                banco: ${{ fromJSON(inputs.bancos) }}
+        services:
+            banco:
+                image: ${{ matrix.banco.imagem }}
+                env:
+                    MYSQL_ROOT_PASSWORD: root
+                    MYSQL_DATABASE: app
+                    MARIADB_ROOT_PASSWORD: root
+                    MARIADB_DATABASE: app
+                ports: ['3306:3306']
+                options: >-
+                    --health-cmd="${{ matrix.banco.saude }}"
+                    --health-interval=5s --health-timeout=5s --health-retries=30
+        env:
+            APP_ENV: dev
+            DATABASE_URL: mysql://root:root@127.0.0.1:3306/app?charset=utf8mb4
+        steps:
+            - uses: actions/checkout@v7
+
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ inputs.php-version }}
+                  extensions: ${{ inputs.extensoes-migrations }}
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Cache do Composer
+              uses: actions/cache@v6
+              with:
+                  path: ~/.composer/cache/files
+                  key: composer-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-
+
+            - name: Dependências
+              run: composer install --no-interaction --no-progress --prefer-dist
+
+            - name: Todas as migrations, do banco vazio até a última
+              run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+            # Sem --skip-sync: o banco montado pelas migrations tem de bater com o mapeamento das
+            # entidades. Uma entidade alterada sem migration, ou uma migration errada, reprova aqui,
+            # e o SQL impresso é o conteúdo da migration que está faltando.
+            - name: Banco igual às entidades
+              run: |
+                  php bin/console doctrine:schema:validate || {
+                      php bin/console doctrine:schema:update --dump-sql
+                      exit 1
+                  }

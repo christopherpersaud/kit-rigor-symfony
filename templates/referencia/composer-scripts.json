@@ -1,0 +1,39 @@
+{
+    "test": [
+        "Composer\\Config::disableProcessTimeout",
+        "@php -d pcov.enabled=0 vendor/bin/paratest"
+    ],
+    "phpstan": [
+        "phpstan analyse --memory-limit=1G",
+        "phpstan analyse --memory-limit=1G -c phpstan.tests.neon"
+    ],
+    "check:rapido": [
+        "@php bin/console lint:container --env=test",
+        "@php bin/console lint:yaml config/ --parse-tags --env=test",
+        "@php bin/console lint:twig templates/ --env=test",
+        "@php bin/console doctrine:schema:validate --skip-sync --env=test",
+        "@phpstan",
+        "php-cs-fixer fix --dry-run --diff --show-progress=none",
+        "npm run lint -- --cache --cache-location var/cache/eslint/",
+        "npm run test:js",
+        "test -f public/build/entrypoints.json || npm run dev",
+        "@test"
+    ],
+    "check": [
+        "@check:rapido",
+        "npm run build"
+    ],
+    "cobertura": [
+        "Composer\\Config::disableProcessTimeout",
+        "@php vendor/bin/rigor-cobertura"
+    ],
+    "mutacao": [
+        "Composer\\Config::disableProcessTimeout",
+        "@php -d pcov.enabled=1 vendor/bin/infection --only-covering-test-cases"
+    ],
+    "mutacao:diff": [
+        "Composer\\Config::disableProcessTimeout",
+        "git fetch -q origin master || true",
+        "@php -d pcov.enabled=1 vendor/bin/infection --only-covering-test-cases --git-diff-lines --git-diff-base=origin/master"
+    ]
+}

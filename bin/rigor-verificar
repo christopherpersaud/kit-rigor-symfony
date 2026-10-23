@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+// Roda o comando de verificação do projeto (extra.rigor.verificar.comando, por padrão
+// `composer check:rapido`) se algum arquivo verificado mudou desde a última verificação verde.
+// Sai com 0 se passou ou se nada mudou, e com 1 se falhou; nesse caso a última linha é
+// VERIFICAR_LOG=<log>.
+//
+//   vendor/bin/rigor-verificar           verifica se algo mudou
+//   vendor/bin/rigor-verificar --tudo    ignora a impressão digital e roda mesmo assim
+
+declare(strict_types=1);
+
+use KitRigor\Config;
+use KitRigor\Verificar\Verificacao;
+use KitRigor\Verificar\Verificador;
+
+require $_composer_autoload_path ?? __DIR__.'/../vendor/autoload.php';
+
+$argumentos = is_array($_SERVER['argv'] ?? null) ? array_values(array_filter($_SERVER['argv'], is_string(...))) : [];
+
+$config = Config::doProjeto();
+fwrite(STDERR, sprintf("rigor-verificar: %s...\n", $config->comandoVerificar));
+$verificacao = (new Verificador($config))->verificar(in_array('--tudo', $argumentos, true));
+
+switch ($verificacao->situacao) {
+    case Verificacao::SEM_MUDANCA:
+        fwrite(STDERR, "rigor-verificar: nada mudou desde o último verde.\n");
+        exit(0);
+    case Verificacao::VERDE:
+        fwrite(STDERR, sprintf("rigor-verificar: verde em %d s.\n", $verificacao->segundos));
+        exit(0);
+    default:
+        echo $verificacao->trecho, "\nVERIFICAR_LOG=", $verificacao->log, "\n";
+        exit(1);
+}

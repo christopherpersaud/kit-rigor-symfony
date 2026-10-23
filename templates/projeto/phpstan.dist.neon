@@ -1,0 +1,19 @@
+# Código de produção no nível máximo: inclusive o mixed implícito (valores sem tipo garantido,
+# como respostas de APIs e dados do request) precisa ser conferido antes de usar. Sem baseline e
+# sem comentários de ignorar: o erro se corrige na causa.
+includes:
+    - phpstan.base.neon
+
+parameters:
+    level: 10
+    paths:
+        - src
+    tmpDir: var/cache/phpstan
+
+# Regras de arquitetura (phpat): dependências entre camadas e módulos de src/. Precisa do
+# phpat/phpat; sem ele, apague este bloco.
+services:
+    -
+        class: App\Tests\Arquitetura\RegrasDeArquitetura
+        tags:
+            - phpat.test

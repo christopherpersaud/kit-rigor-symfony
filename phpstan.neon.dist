@@ -1,0 +1,17 @@
+# O kit no nível máximo, como o código de produção dos projetos que o usam.
+includes:
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+
+parameters:
+    level: 10
+    phpVersion: 80400
+    paths:
+        - src
+        - tests
+        - bin/rigor
+        - bin/rigor-verificar
+        - bin/rigor-cobertura
+        - bin/rigor-hook-stop
+    excludePaths:
+        - tests/Fixtures/*
+    tmpDir: var/cache/phpstan
