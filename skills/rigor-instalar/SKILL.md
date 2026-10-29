@@ -70,6 +70,10 @@ Leia a saída:
 - **`extra.rigor` no `composer.json`:** só se o layout fugir do padrão. O padrão é specs em
   `docs/modulos`, testes em `tests` e `assets`, fonte em `src` e dourados em `tests/Dourado`.
   As chaves estão em `KitRigor\Config`.
+- **Verificação leve (`extra.rigor.verificar.leve`):** opcional, só se o usuário quiser que um
+  turno só de layout não rode a suíte inteira. Pergunte quais pastas contam como layout e monte
+  um `check:leve` com os lints delas (`lint:twig`, ESLint, testes JS) e, se houver, um teste
+  rápido que renderize as páginas. Tire da lista com `!` o template que tem teste dourado.
 - **Arquivos que `difere`:** compare o do projeto com o modelo do kit. Proponha só o que falta
   (uma regra, uma extensão) e preserve o que é escolha do projeto.
 - **Projeto que já tinha uma versão própria destas peças** (como o nfdash, de onde o kit saiu):

@@ -13,6 +13,7 @@ use KitRigor\Verificar\Verificador;
  * agente continuar o turno com o `reason` como instrução.
  *
  * - Nada mudou desde o último verde: sai em silêncio (perguntas e respostas não custam nada).
+ * - Só mudou layout (`verificar.leve`): roda o comando leve no lugar do completo.
  * - Falhou: bloqueia com o fim da saída; o log inteiro fica em var/check/.
  * - Depois de MAX_BLOQUEIOS falhas seguidas na mesma sessão, deixa encerrar com um aviso ao
  *   usuário, para um ambiente quebrado não prender o agente num loop.
@@ -39,7 +40,7 @@ final readonly class Stop
         $id = \is_array($sessao) && \is_string($sessao['session_id'] ?? null) ? $sessao['session_id'] : 'sem-sessao';
         $contador = $this->config->caminho(Verificador::PASTA_ESTADO.'/bloqueios-'.preg_replace('/[^A-Za-z0-9_-]/', '_', $id));
 
-        $verificacao = $this->verificador->verificar();
+        $verificacao = $this->verificador->verificar(permitirLeve: true);
         if ($verificacao->passou()) {
             @unlink($contador);
 
@@ -60,7 +61,7 @@ final readonly class Stop
 
         return self::json(['decision' => 'block', 'reason' => \sprintf(
             "A verificação (%s) falhou (tentativa %d de %d). Corrija a causa e não encerre o turno com a verificação vermelha; não desligue a checagem nem a contorne. Log completo em %s. Fim da saída:\n\n%s",
-            $this->config->comandoVerificar,
+            $verificacao->comando,
             $bloqueios,
             self::MAX_BLOQUEIOS,
             $verificacao->log,

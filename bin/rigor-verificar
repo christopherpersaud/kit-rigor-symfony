@@ -4,7 +4,8 @@
 // Roda o comando de verificação do projeto (extra.rigor.verificar.comando, por padrão
 // `composer check:rapido`) se algum arquivo verificado mudou desde a última verificação verde.
 // Sai com 0 se passou ou se nada mudou, e com 1 se falhou; nesse caso a última linha é
-// VERIFICAR_LOG=<log>.
+// VERIFICAR_LOG=<log>. Roda sempre o comando completo: a verificação leve (verificar.leve) é só
+// do hook de fim de turno.
 //
 //   vendor/bin/rigor-verificar           verifica se algo mudou
 //   vendor/bin/rigor-verificar --tudo    ignora a impressão digital e roda mesmo assim

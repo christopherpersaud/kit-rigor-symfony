@@ -16,7 +16,10 @@ use Composer\InstalledVersions;
  *             "testes-php": ["tests"],
  *             "testes-js": ["assets"],
  *             "dourados": "tests/Dourado",
- *             "verificar": {"comando": "composer check:rapido", "caminhos": ["."], "ignorar": ["*.md"]},
+ *             "verificar": {
+ *                 "comando": "composer check:rapido", "caminhos": ["."], "ignorar": ["*.md"],
+ *                 "leve": {"comando": "composer check:leve", "arquivos": ["templates/*", "!templates/pdf/*"]}
+ *             },
  *             "cobertura": {"fonte": "src", "trava": "tests/cobertura.php", "agrupar": ["Domain"]}
  *         }
  *     }
@@ -28,6 +31,7 @@ final readonly class Config
      * @param list<string> $testesJs
      * @param list<string> $caminhosVerificados
      * @param list<string> $ignorados
+     * @param list<string> $arquivosLeves       padrões fnmatch; um `!` na frente tira da lista o que casar
      * @param list<string> $agrupar
      */
     public function __construct(
@@ -39,6 +43,8 @@ final readonly class Config
         public string $comandoVerificar = 'composer check:rapido',
         public array $caminhosVerificados = ['.'],
         public array $ignorados = ['*.md', '.agent-memory/*', '.agents/*', '.claude/skills/*'],
+        public ?string $comandoLeve = null,
+        public array $arquivosLeves = [],
         public string $fonteCobertura = 'src',
         public string $travaCobertura = 'tests/cobertura.php',
         public array $agrupar = ['Domain'],
@@ -59,6 +65,7 @@ final readonly class Config
         $extra = \is_array($composer) && \is_array($composer['extra'] ?? null) ? $composer['extra'] : [];
         $rigor = \is_array($extra['rigor'] ?? null) ? $extra['rigor'] : [];
         $verificar = \is_array($rigor['verificar'] ?? null) ? $rigor['verificar'] : [];
+        $leve = \is_array($verificar['leve'] ?? null) ? $verificar['leve'] : [];
         $cobertura = \is_array($rigor['cobertura'] ?? null) ? $rigor['cobertura'] : [];
         $padrao = new self($raiz);
 
@@ -71,10 +78,27 @@ final readonly class Config
             comandoVerificar: self::texto($verificar, 'comando') ?? $padrao->comandoVerificar,
             caminhosVerificados: self::lista($verificar, 'caminhos') ?? $padrao->caminhosVerificados,
             ignorados: self::lista($verificar, 'ignorar') ?? $padrao->ignorados,
+            comandoLeve: self::texto($leve, 'comando'),
+            arquivosLeves: self::lista($leve, 'arquivos') ?? [],
             fonteCobertura: self::texto($cobertura, 'fonte') ?? $padrao->fonteCobertura,
             travaCobertura: self::texto($cobertura, 'trava') ?? $padrao->travaCobertura,
             agrupar: self::lista($cobertura, 'agrupar') ?? $padrao->agrupar,
         );
+    }
+
+    /** Se o arquivo pode ser verificado só pelo comando leve (`verificar.leve`). */
+    public function arquivoLeve(string $arquivo): bool
+    {
+        $leve = false;
+        foreach ($this->arquivosLeves as $padrao) {
+            if (str_starts_with($padrao, '!')) {
+                $leve = $leve && !fnmatch(substr($padrao, 1), $arquivo);
+            } elseif (fnmatch($padrao, $arquivo)) {
+                $leve = true;
+            }
+        }
+
+        return $leve;
     }
 
     public function caminho(string $relativo): string

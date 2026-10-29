@@ -42,6 +42,30 @@ final class ConfigTest extends TestCase
         self::assertSame($this->pasta.'/lib', $config->caminho('lib'));
     }
 
+    public function testVerificacaoLeveVemDeVerificarLeve(): void
+    {
+        $this->gravar('composer.json', json_encode(['extra' => ['rigor' => [
+            'verificar' => ['leve' => ['comando' => 'composer check:leve', 'arquivos' => ['templates/*', '!templates/pdf/*']]],
+        ]]], \JSON_THROW_ON_ERROR));
+
+        $config = Config::daPasta($this->pasta);
+
+        self::assertSame('composer check:leve', $config->comandoLeve);
+        self::assertSame(['templates/*', '!templates/pdf/*'], $config->arquivosLeves);
+        self::assertSame('composer check:rapido', $config->comandoVerificar);
+    }
+
+    public function testArquivoLeveCasaNaOrdemEAExclamacaoTira(): void
+    {
+        $config = new Config($this->pasta, arquivosLeves: ['templates/*', '!templates/pdf/*', 'templates/pdf/capa.twig']);
+
+        self::assertTrue($config->arquivoLeve('templates/nota/lista.html.twig'));
+        self::assertFalse($config->arquivoLeve('templates/pdf/nota.html.twig'));
+        self::assertTrue($config->arquivoLeve('templates/pdf/capa.twig'));
+        self::assertFalse($config->arquivoLeve('src/A.php'));
+        self::assertFalse(new Config($this->pasta)->arquivoLeve('templates/a.twig'), 'Sem a lista, nada é leve.');
+    }
+
     public function testSemComposerJsonValeOPadrao(): void
     {
         self::assertEquals(new Config($this->pasta), Config::daPasta($this->pasta));

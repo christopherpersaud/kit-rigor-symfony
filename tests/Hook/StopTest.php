@@ -82,6 +82,20 @@ final class StopTest extends TestCase
         self::assertFileExists($this->pasta.'/var/check/bloqueios-______fora');
     }
 
+    public function testSoLayoutMudouOHookRodaOLeveENomeiaEleNoMotivo(): void
+    {
+        $this->hook('true')->executar(self::SESSAO);
+        $config = new Config($this->pasta, comandoVerificar: 'exit 1', comandoLeve: 'echo "Twig com erro"; exit 1', arquivosLeves: ['templates/*']);
+        $this->gravar('templates/a.html.twig', 'a');
+
+        $json = json_decode((string) new Stop($config, new Verificador($config))->executar(self::SESSAO), true);
+
+        self::assertIsArray($json);
+        self::assertIsString($json['reason']);
+        self::assertStringStartsWith('A verificação (echo "Twig com erro"; exit 1) falhou (tentativa 1 de 3).', $json['reason']);
+        self::assertStringEndsWith("Fim da saída:\n\nTwig com erro", $json['reason']);
+    }
+
     public function testDesligadoPeloAmbienteNaoRoda(): void
     {
         putenv('VERIFICAR_DESLIGADO=1');

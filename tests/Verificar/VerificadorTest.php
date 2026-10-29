@@ -92,7 +92,7 @@ final class VerificadorTest extends TestCase
         self::assertFalse($verificacao->passou());
         self::assertSame("Erro em X\n  detalhe", $verificacao->trecho);
         self::assertSame('var/check/ultimo.log', $verificacao->log);
-        self::assertFileDoesNotExist($this->pasta.'/var/check/verde');
+        self::assertFileDoesNotExist($this->pasta.'/var/check/verde.json');
         self::assertSame(Verificacao::FALHOU, $verificador->verificar()->situacao, 'Depois de uma falha, roda de novo mesmo sem mudança.');
     }
 
@@ -103,6 +103,111 @@ final class VerificadorTest extends TestCase
         $linhas = explode("\n", $verificacao->trecho);
         self::assertCount(60, $linhas);
         self::assertSame(['41', '100'], [$linhas[0], $linhas[59]]);
+    }
+
+    public function testSoLayoutMudouRodaOComandoLeveUmaVezSo(): void
+    {
+        $this->gravar('templates/a.html.twig', 'a');
+        $verificador = $this->verificadorComLeve();
+        $verificador->verificar(permitirLeve: true);
+
+        $this->gravar('templates/a.html.twig', 'mudou');
+        $leve = $verificador->verificar(permitirLeve: true);
+        $deNovo = $verificador->verificar(permitirLeve: true);
+
+        self::assertSame([Verificacao::VERDE, true, 'echo leve >> var/rodou.log'], [$leve->situacao, $leve->leve, $leve->comando]);
+        self::assertSame([Verificacao::SEM_MUDANCA, true], [$deNovo->situacao, $deNovo->leve]);
+        self::assertSame("completo\nleve\n", $this->ler('var/rodou.log'));
+    }
+
+    public function testLayoutNovoOuApagadoTambemEhLeve(): void
+    {
+        $this->gravar('templates/a.html.twig', 'a');
+        $verificador = $this->verificadorComLeve();
+        $verificador->verificar(permitirLeve: true);
+
+        unlink($this->pasta.'/templates/a.html.twig');
+        $this->gravar('templates/b.html.twig', 'b');
+
+        self::assertTrue($verificador->verificar(permitirLeve: true)->leve);
+    }
+
+    public function testLayoutJuntoComOutroArquivoRodaOCompleto(): void
+    {
+        $verificador = $this->verificadorComLeve();
+        $verificador->verificar(permitirLeve: true);
+
+        $this->gravar('templates/a.html.twig', 'a');
+        $this->gravar('src/A.php', '<?php // mudou');
+        $verificacao = $verificador->verificar(permitirLeve: true);
+
+        self::assertSame([Verificacao::VERDE, false, 'echo completo >> var/rodou.log'], [$verificacao->situacao, $verificacao->leve, $verificacao->comando]);
+    }
+
+    public function testOVerdeLeveNaoContaComoCompleto(): void
+    {
+        $verificador = $this->verificadorComLeve();
+        $verificador->verificar(permitirLeve: true);
+        $this->gravar('templates/a.html.twig', 'a');
+        $verificador->verificar(permitirLeve: true);
+
+        $completo = $verificador->verificar();
+        $leveDepoisDoCompleto = $verificador->verificar(permitirLeve: true);
+
+        self::assertSame([Verificacao::VERDE, false], [$completo->situacao, $completo->leve], 'Sem permitirLeve (pre-push), o layout que só passou no leve roda o completo.');
+        self::assertSame(Verificacao::SEM_MUDANCA, $leveDepoisDoCompleto->situacao);
+        self::assertSame("completo\nleve\ncompleto\n", $this->ler('var/rodou.log'));
+    }
+
+    public function testSemUmVerdeCompletoAntesNaoHaLeve(): void
+    {
+        $this->gravar('templates/a.html.twig', 'a');
+
+        self::assertFalse($this->verificadorComLeve()->verificar(permitirLeve: true)->leve);
+    }
+
+    public function testArquivoTiradoDaListaComExclamacaoRodaOCompleto(): void
+    {
+        $verificador = $this->verificadorComLeve();
+        $verificador->verificar(permitirLeve: true);
+
+        $this->gravar('templates/pdf/nota.html.twig', 'a');
+
+        self::assertFalse($verificador->verificar(permitirLeve: true)->leve);
+    }
+
+    public function testFalhaNoLeveRodaDeNovoSemMudancaEMantemOVerdeCompleto(): void
+    {
+        $this->verificadorComLeve()->verificar(permitirLeve: true);
+        $verificador = new Verificador(new Config($this->pasta, comandoVerificar: 'true', comandoLeve: 'echo "lint:twig falhou"; exit 1', arquivosLeves: ['templates/*']));
+        $this->gravar('templates/a.html.twig', 'a');
+
+        $primeira = $verificador->verificar(permitirLeve: true);
+        $segunda = $verificador->verificar(permitirLeve: true);
+
+        self::assertSame([Verificacao::FALHOU, true, 'lint:twig falhou'], [$primeira->situacao, $primeira->leve, $primeira->trecho]);
+        self::assertSame(Verificacao::FALHOU, $segunda->situacao);
+        self::assertFileExists($this->pasta.'/var/check/verde.json');
+    }
+
+    public function testSemComandoLeveConfiguradoRodaOCompleto(): void
+    {
+        $verificador = $this->verificador('true');
+        $verificador->verificar(permitirLeve: true);
+
+        $this->gravar('templates/a.html.twig', 'a');
+
+        self::assertFalse($verificador->verificar(permitirLeve: true)->leve);
+    }
+
+    private function verificadorComLeve(): Verificador
+    {
+        return new Verificador(new Config(
+            $this->pasta,
+            comandoVerificar: 'echo completo >> var/rodou.log',
+            comandoLeve: 'echo leve >> var/rodou.log',
+            arquivosLeves: ['templates/*', '!templates/pdf/*'],
+        ));
     }
 
     private function verificador(string $comando): Verificador

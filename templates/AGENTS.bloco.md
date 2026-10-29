@@ -91,7 +91,12 @@ Two levels, so the end of a turn stays fast and the slow parts still run on ever
   `--dry-run`, JS lint and tests if the project has them, and the whole PHPUnit suite in
   parallel without coverage. The agent's Stop hook (Claude Code: `.claude/settings.json`;
   Codex: `.codex/hooks.json`) runs it through `vendor/bin/rigor-verificar`, which skips it when
-  no checked file changed since the last green run (fingerprint in `var/check/`). If it fails,
+  no checked file changed since the last green run (fingerprint in `var/check/`). When the
+  project sets `extra.rigor.verificar.leve` and every file changed since the last full green
+  run matches its `arquivos` (layout: templates, styles, front-end), the hook runs the light
+  command instead; that is enough for a layout-only turn, so don't run `check:rapido` by hand on
+  top of it. The full command still runs on the next turn that touches anything else, on the
+  `pre-push` and in the CI. If it fails,
   the turn goes on until it is green: fix the cause; never disable the hook
   (`VERIFICAR_DESLIGADO=1`) or work around it, that is the user's call only. Full log in
   `var/check/ultimo.log`. The git `pre-push` hook (`.githooks/pre-push`) runs the same check.

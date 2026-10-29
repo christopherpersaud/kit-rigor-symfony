@@ -17,7 +17,14 @@ use function Symfony\Component\String\u;
  * A impressão digital é o conteúdo dos arquivos na pasta de trabalho (rastreados e novos, fora os
  * ignorados pelo git e os de `ignorar`), não o HEAD: o que ficou verde antes de virar commit
  * continua verde. Os docs de spec contam sempre, mesmo sendo Markdown: a rastreabilidade os lê.
- * Estado e log em var/check/.
+ *
+ * Verificação leve (`verificar.leve`, só no hook de fim de turno): se tudo o que mudou desde o
+ * último verde completo é de layout (`leve.arquivos`), roda o comando leve no lugar do completo.
+ * O verde leve não conta como completo: a próxima mudança fora da lista, o pre-push e o CI ainda
+ * passam a suíte inteira por cima do que o leve deixou passar.
+ *
+ * Estado e log em var/check/: `verde.json` (o sha1 de cada arquivo no último verde completo),
+ * `verde-leve` (a impressão digital do último verde leve) e `ultimo.log`.
  */
 final readonly class Verificador
 {
@@ -29,48 +36,60 @@ final readonly class Verificador
     ) {
     }
 
-    public function verificar(bool $mesmoSemMudanca = false): Verificacao
+    /**
+     * @param bool $permitirLeve se tudo o que mudou desde o último verde completo casa com
+     *                           `verificar.leve.arquivos`, roda o comando leve no lugar do completo
+     */
+    public function verificar(bool $mesmoSemMudanca = false, bool $permitirLeve = false): Verificacao
     {
         $estado = $this->config->caminho(self::PASTA_ESTADO);
         if (!is_dir($estado)) {
             mkdir($estado, 0o777, true);
         }
 
-        $atual = $this->impressaoDigital();
-        if (!$mesmoSemMudanca && $atual === @file_get_contents($estado.'/verde')) {
+        $conteudo = $this->conteudo();
+        $atual = self::impressao($conteudo);
+        $verde = $this->ultimoVerde();
+        if (!$mesmoSemMudanca && null !== $verde && $atual === self::impressao($verde)) {
             return new Verificacao(Verificacao::SEM_MUDANCA);
         }
 
-        $inicio = microtime(true);
-        $log = fopen($this->config->caminho(self::LOG), 'w');
-        if (false === $log) {
-            return new Verificacao(Verificacao::FALHOU, 'não deu para gravar '.self::LOG.'.', self::LOG);
-        }
-        $processo = proc_open($this->config->comandoVerificar, [0 => ['file', '/dev/null', 'r'], 1 => $log, 2 => $log], $pipes, $this->config->raiz);
-        $codigo = false === $processo ? 127 : proc_close($processo);
-        fclose($log);
-        $segundos = (int) round(microtime(true) - $inicio);
+        if (!$mesmoSemMudanca && $permitirLeve && null !== $this->config->comandoLeve && null !== $verde && $this->soMudouLeve($verde, $conteudo)) {
+            if ($atual === @file_get_contents($estado.'/verde-leve')) {
+                return new Verificacao(Verificacao::SEM_MUDANCA, comando: $this->config->comandoLeve, leve: true);
+            }
+            $verificacao = $this->rodar($this->config->comandoLeve, true);
+            $verificacao->passou() ? file_put_contents($estado.'/verde-leve', $atual) : @unlink($estado.'/verde-leve');
 
-        if (0 === $codigo) {
-            file_put_contents($estado.'/verde', $atual);
-
-            return new Verificacao(Verificacao::VERDE, segundos: $segundos);
+            return $verificacao;
         }
 
+        $verificacao = $this->rodar($this->config->comandoVerificar, false);
         @unlink($estado.'/verde');
+        if ($verificacao->passou()) {
+            file_put_contents($estado.'/verde.json', json_encode($conteudo, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR));
+        } else {
+            @unlink($estado.'/verde.json');
+        }
 
-        return new Verificacao(Verificacao::FALHOU, $this->fimDoLog(), self::LOG, $segundos);
+        return $verificacao;
     }
 
     /** sha1 dos caminhos e do conteúdo dos arquivos verificados, em ordem de bytes. */
     public function impressaoDigital(): string
     {
-        $hash = hash_init('sha1');
+        return self::impressao($this->conteudo());
+    }
+
+    /** @return array<string, string> o sha1 de cada arquivo verificado */
+    public function conteudo(): array
+    {
+        $conteudo = [];
         foreach ($this->arquivos() as $arquivo) {
-            hash_update($hash, $arquivo."\0".sha1_file($this->config->caminho($arquivo))."\n");
+            $conteudo[$arquivo] = (string) sha1_file($this->config->caminho($arquivo));
         }
 
-        return hash_final($hash);
+        return $conteudo;
     }
 
     /** @return list<string> */
@@ -100,6 +119,70 @@ final readonly class Verificador
         sort($arquivos, \SORT_STRING);
 
         return $arquivos;
+    }
+
+    /** @param array<string, string> $conteudo */
+    private static function impressao(array $conteudo): string
+    {
+        $hash = hash_init('sha1');
+        foreach ($conteudo as $arquivo => $sha1) {
+            hash_update($hash, $arquivo."\0".$sha1."\n");
+        }
+
+        return hash_final($hash);
+    }
+
+    /** @return array<string, string>|null o conteúdo da última verificação completa verde */
+    private function ultimoVerde(): ?array
+    {
+        $json = json_decode((string) @file_get_contents($this->config->caminho(self::PASTA_ESTADO.'/verde.json')), true);
+        if (!\is_array($json)) {
+            return null;
+        }
+
+        $verde = [];
+        foreach ($json as $arquivo => $sha1) {
+            if (\is_string($sha1)) {
+                $verde[(string) $arquivo] = $sha1;
+            }
+        }
+
+        return $verde;
+    }
+
+    /**
+     * @param array<string, string> $verde
+     * @param array<string, string> $atual
+     */
+    private function soMudouLeve(array $verde, array $atual): bool
+    {
+        $mudados = array_keys(array_diff_assoc($verde, $atual) + array_diff_assoc($atual, $verde));
+        foreach ($mudados as $arquivo) {
+            if (!$this->config->arquivoLeve((string) $arquivo)) {
+                return false;
+            }
+        }
+
+        return [] !== $mudados;
+    }
+
+    private function rodar(string $comando, bool $leve): Verificacao
+    {
+        $inicio = microtime(true);
+        $log = fopen($this->config->caminho(self::LOG), 'w');
+        if (false === $log) {
+            return new Verificacao(Verificacao::FALHOU, 'não deu para gravar '.self::LOG.'.', self::LOG, comando: $comando, leve: $leve);
+        }
+        $processo = proc_open($comando, [0 => ['file', '/dev/null', 'r'], 1 => $log, 2 => $log], $pipes, $this->config->raiz);
+        $codigo = false === $processo ? 127 : proc_close($processo);
+        fclose($log);
+        $segundos = (int) round(microtime(true) - $inicio);
+
+        if (0 === $codigo) {
+            return new Verificacao(Verificacao::VERDE, segundos: $segundos, comando: $comando, leve: $leve);
+        }
+
+        return new Verificacao(Verificacao::FALHOU, $this->fimDoLog(), self::LOG, $segundos, $comando, $leve);
     }
 
     private function ignorado(string $arquivo): bool

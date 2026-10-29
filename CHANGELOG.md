@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 (2026-10-29)
+
+- Verificação leve no fim do turno, opcional: `extra.rigor.verificar.leve` (`comando` e
+  `arquivos`, padrões fnmatch com `!` para tirar). Quando tudo o que mudou desde o último verde
+  completo casa com a lista, o hook `Stop` roda o comando leve no lugar do completo. O
+  `rigor-verificar` (pre-push) continua sempre completo. O estado em `var/check/` passa de
+  `verde` para `verde.json` (o sha1 de cada arquivo), então a primeira verificação depois de
+  atualizar roda o comando completo uma vez.
+- `Verificacao` ganha `comando` e `leve`; o motivo do bloqueio do hook cita o comando que rodou.
+
 ## 0.2.0 (2026-10-23)
 
 - Mutação no CI, opcional: o workflow reutilizável ganha o job `mutacao` (inputs `mutacao`,

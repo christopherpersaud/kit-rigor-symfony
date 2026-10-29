@@ -14,7 +14,7 @@ and a reusable GitHub Actions workflow. Docs and messages are in Brazilian Portu
 |---|---|---|
 | **Specs rastreáveis** | Regras de negócio com ID permanente (`CLI-04`) e cenários "Dado/quando/então" nos docs de módulo. A suíte reprova se uma regra ativa fica sem teste, se um teste cita uma regra que não existe ou foi revogada, ou se um ID se repete. | `KitRigor\Spec\RastreabilidadeTestCase` |
 | **Testes dourados** | A saída inteira (XML, HTML, JSON) comparada com um arquivo aprovado; qualquer mudança aparece como diff. | `KitRigor\Dourado` |
-| **Verificação no fim do turno** | O hook `Stop` do Claude Code e do Codex roda o `composer check:rapido` se algo mudou desde o último verde; se falhar, o agente continua o turno até corrigir. | `vendor/bin/rigor-hook-stop`, `vendor/bin/rigor-verificar` |
+| **Verificação no fim do turno** | O hook `Stop` do Claude Code e do Codex roda o `composer check:rapido` se algo mudou desde o último verde (ou um comando leve, se só mudou layout); se falhar, o agente continua o turno até corrigir. | `vendor/bin/rigor-hook-stop`, `vendor/bin/rigor-verificar` |
 | **Trava de cobertura** | Piso por pasta, piso total e nenhum arquivo a 0%; os pisos só sobem. | `vendor/bin/rigor-cobertura` |
 | **Regras de arquitetura** | phpat dentro do PHPStan: camadas, UseCase `final`, controller fino, mapa de dependência entre módulos. | `KitRigor\Arquitetura\RegrasSymfony` |
 | **CI reutilizável** | Check completo, cobertura, migrations num banco vazio (MySQL e MariaDB) e, opcional, mutação nas linhas mudadas, chamado com `uses:`. | `.github/workflows/php-check.yml` |
@@ -108,7 +108,11 @@ Tudo é opcional. Os padrões são os de um projeto Symfony:
         "verificar": {
             "comando": "composer check:rapido",
             "caminhos": ["."],
-            "ignorar": ["*.md", ".agent-memory/*", ".agents/*", ".claude/skills/*"]
+            "ignorar": ["*.md", ".agent-memory/*", ".agents/*", ".claude/skills/*"],
+            "leve": {
+                "comando": "composer check:leve",
+                "arquivos": ["templates/*", "assets/*", "!templates/pdf/*"]
+            }
         },
         "cobertura": {
             "fonte": "src",
@@ -121,6 +125,14 @@ Tudo é opcional. Os padrões são os de um projeto Symfony:
 
 Em `verificar.ignorar` ficam os arquivos que não disparam a verificação (fnmatch). Os docs de
 spec contam sempre, mesmo sendo Markdown, porque a rastreabilidade os lê.
+
+`verificar.leve` é opcional (sem ele, todo turno com mudança roda o `comando`). Quando tudo o
+que mudou desde o último verde **completo** casa com `leve.arquivos`, o hook de fim de turno
+roda `leve.comando` no lugar do completo: um ajuste de layout passa só pelos lints e pelo que o
+projeto puser no comando leve, em segundos. Os padrões são fnmatch na ordem, e um `!` na frente
+tira da lista o que casar (um template com teste dourado, por exemplo). O verde leve não conta
+como completo: a primeira mudança fora da lista, o `vendor/bin/rigor-verificar` (pre-push) e o
+CI rodam o comando completo por cima do layout que só passou no leve.
 
 ## Formato de uma regra
 
