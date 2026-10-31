@@ -48,6 +48,7 @@ final readonly class Config
         public string $fonteCobertura = 'src',
         public string $travaCobertura = 'tests/cobertura.php',
         public array $agrupar = ['Domain'],
+        public ?string $escopoVerificacao = null,
     ) {
     }
 
@@ -83,6 +84,7 @@ final readonly class Config
             fonteCobertura: self::texto($cobertura, 'fonte') ?? $padrao->fonteCobertura,
             travaCobertura: self::texto($cobertura, 'trava') ?? $padrao->travaCobertura,
             agrupar: self::lista($cobertura, 'agrupar') ?? $padrao->agrupar,
+            escopoVerificacao: self::texto($verificar, 'escopo'),
         );
     }
 

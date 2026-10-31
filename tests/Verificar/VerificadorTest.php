@@ -210,6 +210,67 @@ final class VerificadorTest extends TestCase
         ));
     }
 
+    public function testLayoutEManifestoAtualizadosUsamOLeveSemClassificarJsonComoLayout(): void
+    {
+        $this->gravar('templates/a.html.twig', 'a');
+        $this->gravar('tests/ATest.php', '<?php');
+        $this->gravar('selecao.json', '{"arquivos":["src/A.php"],"testes":["tests/ATest.php"]}');
+        $verificador = $this->verificadorComManifesto();
+        $verificador->verificar();
+
+        $this->gravar('templates/a.html.twig', 'div alterada');
+        $this->gravar('selecao.json', '{"arquivos":["templates/a.html.twig"],"testes":["tests/ATest.php"]}');
+
+        self::assertTrue($verificador->verificar(permitirLeve: true)->leve);
+        self::assertSame(Verificacao::SEM_MUDANCA, $verificador->verificar(permitirLeve: true)->situacao);
+        $this->gravar('src/A.php', '<?php // novo');
+        self::assertFalse($verificador->verificar(permitirLeve: true)->leve);
+        self::assertSame("completo\nleve\ncompleto\n", $this->ler('var/rodou.log'));
+    }
+
+    public function testManifestoInvalidoExigeComandoDirecionado(): void
+    {
+        $this->gravar('tests/ATest.php', '<?php');
+        $this->gravar('selecao.json', '{"arquivos":[],"testes":["tests/ATest.php"]}');
+        $verificador = $this->verificadorComManifesto();
+        $verificador->verificar();
+        $this->gravar('selecao.json', '{ quebrado');
+
+        self::assertFalse($verificador->verificar(permitirLeve: true)->leve);
+        self::assertSame("completo\ncompleto\n", $this->ler('var/rodou.log'));
+    }
+
+    public function testManifestoComPhpNaoPermiteLeveMesmoQuandoSoATelaMudou(): void
+    {
+        $this->gravar('templates/a.html.twig', 'a');
+        $this->gravar('tests/ATest.php', '<?php');
+        $this->gravar('selecao.json', '{"arquivos":["src/A.php"],"testes":["tests/ATest.php"]}');
+        $verificador = $this->verificadorComManifesto();
+        $verificador->verificar();
+        $this->gravar('templates/a.html.twig', 'mudou');
+
+        self::assertFalse($verificador->verificar(permitirLeve: true)->leve);
+    }
+
+    public function testManifestoContinuaContandoMesmoSeJsonEstiverIgnorado(): void
+    {
+        $this->gravar('selecao.json', '{}');
+        $config = new Config($this->pasta, ignorados: ['*.json'], escopoVerificacao: 'selecao.json');
+
+        self::assertContains('selecao.json', new Verificador($config)->arquivos());
+    }
+
+    private function verificadorComManifesto(): Verificador
+    {
+        return new Verificador(new Config(
+            $this->pasta,
+            comandoVerificar: 'echo completo >> var/rodou.log',
+            comandoLeve: 'echo leve >> var/rodou.log',
+            arquivosLeves: ['templates/*'],
+            escopoVerificacao: 'selecao.json',
+        ));
+    }
+
     private function verificador(string $comando): Verificador
     {
         return new Verificador(new Config($this->pasta, comandoVerificar: $comando));

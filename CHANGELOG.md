@@ -1,5 +1,17 @@
 # Changelog
 
+## Não publicado
+
+- Adoção por escopo opcional: `extra.rigor.verificar.escopo` e `KitRigor\Verificar\Escopo`
+  validam arquivos/testes individuais. Atualizar o manifesto junto com uma tela permite o
+  check leve somente quando a seleção é de layout; PHP, caminhos inválidos e JSON quebrado
+  exigem o comando direcionado. Sem a opção, o comportamento anterior permanece.
+- Modelos de referência e skill para separar layout leve, validação local por tarefa e CI
+  completo independente do manifesto, preservando a adoção gradual de cada projeto.
+- CI reutilizável: `timeout-check` (padrão 20 minutos), `relatorios` (desligado por padrão) e
+  `retencao-relatorios` (14 dias). O job de check usa timeout interno do Composer de 30 minutos
+  e shell com pipefail para preservar falhas quando o comando salva o log com tee.
+
 ## 0.3.0 (2026-10-29)
 
 - Verificação leve no fim do turno, opcional: `extra.rigor.verificar.leve` (`comando` e

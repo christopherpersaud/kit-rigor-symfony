@@ -1,0 +1,20 @@
+{
+    "extra": {
+        "rigor": {
+            "verificar": {
+                "comando": "composer check:rapido",
+                "escopo": "rigor-escopo.json",
+                "leve": {
+                    "comando": "composer check:leve",
+                    "arquivos": [
+                        "templates/*.twig",
+                        "assets/*",
+                        "!templates/_email/*",
+                        "!templates/*pdf*",
+                        "!templates/*export*"
+                    ]
+                }
+            }
+        }
+    }
+}

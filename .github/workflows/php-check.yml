@@ -30,6 +30,18 @@ on:
                 description: O check completo.
                 type: string
                 default: composer check
+            timeout-check:
+                description: Limite em minutos do job de check completo.
+                type: number
+                default: 20
+            relatorios:
+                description: Caminhos dos relatórios do check para guardar como artefato; vazio desliga.
+                type: string
+                default: ''
+            retencao-relatorios:
+                description: Dias de retenção do artefato do check.
+                type: number
+                default: 14
             cobertura:
                 description: Roda o job de cobertura (composer cobertura, com pcov).
                 type: boolean
@@ -70,7 +82,9 @@ jobs:
     check:
         name: ${{ inputs.comando-check }}
         runs-on: ubuntu-24.04
-        timeout-minutes: 20
+        timeout-minutes: ${{ inputs.timeout-check }}
+        env:
+            COMPOSER_PROCESS_TIMEOUT: '1800'
         steps:
             - uses: actions/checkout@v7
 
@@ -104,7 +118,17 @@ jobs:
               run: ${{ inputs.preparo }}
 
             - name: Check completo
+              shell: bash
               run: ${{ inputs.comando-check }}
+
+            - name: Relatórios do check
+              if: ${{ always() && inputs.relatorios != '' }}
+              uses: actions/upload-artifact@v7
+              with:
+                  name: rigor-check-php${{ inputs.php-version }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: ${{ inputs.relatorios }}
+                  retention-days: ${{ inputs.retencao-relatorios }}
+                  if-no-files-found: ignore
 
     cobertura:
         name: cobertura

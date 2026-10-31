@@ -21,6 +21,12 @@ jobs:
         uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.2.0
         with:
             php-version: '8.5'
+            # Adoção por escopo: o CI precisa de um comando completo independente do manifesto.
+            # comando-check: composer check:ci
+            # timeout-check: 30
+            # Relatórios opcionais (o comando acima precisa gerar esses arquivos).
+            # relatorios: var/check/ci/
+            # retencao-relatorios: 14
             # Testes funcionais que renderizam as tags do Encore precisam do build de dev.
             # preparo: npm run dev
             # Com Doctrine Migrations: banco vazio até a última migration, no MySQL e no MariaDB.

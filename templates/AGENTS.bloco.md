@@ -85,6 +85,17 @@ failing test pass.
 
 ## Checks
 
+**Optional scoped adoption:** if the project chose `extra.rigor.verificar.escopo`, update its
+manifest for each task with individual changed files, affected regression tests and the
+traceability test. The project chooses the scope manually. Use the light command for layout
+and the selected check for PHP or mixed changes; keep e-mails, PDFs, exports and golden-tested
+templates out of the light list. The configured manifest is metadata, but the kit permits a
+light run only when its selection is valid and contains layout. The CI must use a separate
+complete command (`composer check:ci` in the reference), independent of the manifest. Preserve
+the project's runner, analysis levels and rollout choices; do not enable global coverage,
+mutation or migrations merely by updating the kit. These project choices take precedence over
+the default commands below.
+
 Two levels, so the end of a turn stays fast and the slow parts still run on every push:
 
 - **`composer check:rapido`, at the end of every turn.** Lints, PHPStan, php-cs-fixer

@@ -9,6 +9,7 @@ tem instalado. A skill `rigor-instalar` usa estes modelos para ajustar o projeto
 | `tests/bootstrap-sqlite-por-processo.php` | Projeto com Doctrine ORM e `dama/doctrine-test-bundle`: um banco SQLite por processo do PHPUnit, schema criado uma vez das entidades. |
 | `tests/phpstan-object-manager.php` | Projeto com Doctrine: a extensão do PHPStan valida DQL e tipos das colunas (descomente `doctrine:` no `phpstan.base.neon`). |
 | `tests/phpstan-console-loader.php` | A extensão do PHPStan conhece os comandos de console (descomente `consoleApplicationLoader`). |
+| `escopo/LEIA-ME.md` | Opção de adoção gradual: manifesto por tarefa, layout leve, PHP/testes direcionados e CI completo independente da seleção. Não é aplicado automaticamente. |
 
 Além disso, no `phpunit.dist.xml` do projeto:
 
