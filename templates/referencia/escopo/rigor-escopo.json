@@ -1,0 +1,4 @@
+{
+    "arquivos": ["templates/base.html.twig"],
+    "testes": ["tests/Spec/RastreabilidadeTest.php"]
+}

@@ -70,4 +70,12 @@ final class ConfigTest extends TestCase
     {
         self::assertEquals(new Config($this->pasta), Config::daPasta($this->pasta));
     }
+
+    public function testManifestoSoExisteQuandoOProjetoOptaPorEle(): void
+    {
+        self::assertNull(new Config($this->pasta)->escopoVerificacao);
+        $this->gravar('composer.json', '{"extra":{"rigor":{"verificar":{"escopo":"config/selecao.json"}}}}');
+
+        self::assertSame('config/selecao.json', Config::daPasta($this->pasta)->escopoVerificacao);
+    }
 }

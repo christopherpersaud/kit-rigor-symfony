@@ -1,0 +1,28 @@
+{
+    "test": "@php -d pcov.enabled=0 bin/verificar-escopo.php test",
+    "phpstan": "@php bin/verificar-escopo.php phpstan",
+    "check:rapido": "@php bin/verificar-escopo.php check",
+    "check:leve": "@php bin/verificar-escopo.php leve",
+    "check": "@check:rapido",
+    "lint:ci": [
+        "@php bin/console lint:yaml config/ --parse-tags --env=test",
+        "@php bin/console lint:twig templates/ --env=test"
+    ],
+    "phpstan:ci": [
+        "@php vendor/bin/phpstan analyse --memory-limit=1G",
+        "@php vendor/bin/phpstan analyse --memory-limit=1G -c phpstan.tests.neon"
+    ],
+    "test:ci": [
+        "Composer\\Config::disableProcessTimeout",
+        "@php -r \"is_dir('var/check/ci') || mkdir('var/check/ci', 0775, true);\"",
+        "@php -d pcov.enabled=0 vendor/bin/phpunit --no-coverage --log-junit var/check/ci/junit.xml"
+    ],
+    "check:ci": [
+        "Composer\\Config::disableProcessTimeout",
+        "@validate --strict --no-check-publish",
+        "@lint:ci",
+        "npm run build",
+        "@phpstan:ci",
+        "@test:ci"
+    ]
+}

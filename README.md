@@ -134,6 +134,47 @@ tira da lista o que casar (um template com teste dourado, por exemplo). O verde 
 como completo: a primeira mudança fora da lista, o `vendor/bin/rigor-verificar` (pre-push) e o
 CI rodam o comando completo por cima do layout que só passou no leve.
 
+### Adoção por escopo (opcional)
+
+Para projetos que preferem validar só a tarefa localmente, há um conjunto de modelos em
+[`templates/referencia/escopo/`](templates/referencia/escopo/LEIA-ME.md). Ele separa:
+
+| Onde | O que valida |
+|---|---|
+| Layout no fim do turno | Lints dos templates selecionados e build quando há assets; sem PHPStan/PHPUnit |
+| Código ou tarefa mista | PHPStan, lints e testes selecionados pelo projeto |
+| CI | Build de produção, PHPStan e PHPUnit completos, independentes da seleção local |
+
+O projeto opta pelo manifesto com `extra.rigor.verificar.escopo` (ex.: `rigor-escopo.json`).
+`KitRigor\Verificar\Escopo` lê as listas `arquivos` e `testes` e recusa pastas, opções,
+travessias e links para fora do projeto. As pastas de teste vêm de `testes-php`.
+
+O manifesto é metadado: atualizar a seleção junto com uma `div` não impede o caminho leve.
+Antes de escolher esse caminho, o kit confere o manifesto. JSON inválido, PHP na seleção ou
+arquivo fora dos padrões leves exige o comando direcionado. O manifesto continua sendo
+verificado mesmo se houver uma regra de ignorar JSON. Não é preciso marcar todo JSON como layout.
+
+A escolha dos arquivos e das regressões afetadas é manual. Exclua do leve e-mails, PDFs,
+exportações e templates com testes dourados. Sem verde anterior na worktree, a primeira
+verificação é direcionada; o verde leve não substitui a verificação do pre-push.
+
+Esse modo não é instalado nem ativado automaticamente. A skill preserva os comandos, o
+executor PHPUnit e os níveis de análise do projeto. Cobertura, mutação e migrations continuam
+sendo decisões separadas. O CI deve chamar o comando completo próprio (`composer check:ci`
+no modelo), nunca depender apenas do manifesto da última tarefa.
+
+### Tempo e relatórios do CI
+
+O workflow reutilizável aceita `timeout-check` (padrão 20 minutos), `relatorios` (caminhos para
+guardar como artefato; vazio desliga) e `retencao-relatorios` (padrão 14 dias). A retenção vale
+também para um check que falhou. O projeto precisa gerar os arquivos, como log e JUnit; a
+receita por escopo mostra os comandos. Esses inputs não ativam cobertura ou mutação.
+
+O job de check usa `COMPOSER_PROCESS_TIMEOUT=1800` e preserva o limite externo do job. Nos
+scripts completos, desative também o limite interno do Composer com
+`Composer\Config::disableProcessTimeout`. O passo de check usa Bash com `pipefail`, para que
+salvar a saída com `tee` preserve o código de falha.
+
 ## Formato de uma regra
 
 ```markdown

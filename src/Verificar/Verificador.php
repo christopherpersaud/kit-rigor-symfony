@@ -110,7 +110,7 @@ final readonly class Verificador
             if ('' === $arquivo || !is_file($this->config->caminho($arquivo))) {
                 continue;
             }
-            if (!u($arquivo)->startsWith($specs->toString()) && $this->ignorado($arquivo)) {
+            if ($arquivo !== $this->config->escopoVerificacao && !u($arquivo)->startsWith($specs->toString()) && $this->ignorado($arquivo)) {
                 continue;
             }
             $arquivos[] = $arquivo;
@@ -156,8 +156,24 @@ final readonly class Verificador
      */
     private function soMudouLeve(array $verde, array $atual): bool
     {
+        if (null !== $this->config->escopoVerificacao) {
+            try {
+                if (!(new Escopo($this->config))->somenteLayout()) {
+                    return false;
+                }
+            } catch (\InvalidArgumentException|\JsonException|\RuntimeException) {
+                // O comando direcionado deve informar o erro do manifesto, nunca aprovar um leve.
+                return false;
+            }
+        }
         $mudados = array_keys(array_diff_assoc($verde, $atual) + array_diff_assoc($atual, $verde));
         foreach ($mudados as $arquivo) {
+            if ($arquivo === $this->config->escopoVerificacao) {
+                continue;
+            }
+            if (null !== $this->config->escopoVerificacao && str_ends_with(strtolower((string) $arquivo), '.php')) {
+                return false;
+            }
             if (!$this->config->arquivoLeve((string) $arquivo)) {
                 return false;
             }

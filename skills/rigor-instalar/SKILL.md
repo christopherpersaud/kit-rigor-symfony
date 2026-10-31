@@ -74,6 +74,17 @@ Leia a saída:
   turno só de layout não rode a suíte inteira. Pergunte quais pastas contam como layout e monte
   um `check:leve` com os lints delas (`lint:twig`, ESLint, testes JS) e, se houver, um teste
   rápido que renderize as páginas. Tire da lista com `!` o template que tem teste dourado.
+- **Adoção por escopo:** se o usuário quiser validação local selecionada por tarefa, use
+  `templates/referencia/escopo/LEIA-ME.md` do pacote (em
+  `vendor/christopherpersaud/kit-rigor-symfony/` no projeto, ou na raiz da cópia fonte do kit).
+  Separe layout leve, código/testes direcionados e
+  CI completo; não ative esse modo nem substitua scripts existentes por consequência de uma
+  atualização. O manifesto é opt-in (`extra.rigor.verificar.escopo`); `KitRigor\Verificar\Escopo`
+  valida os caminhos e permite tratá-lo como metadado sem classificar todo JSON como layout.
+  Mantenha fora do leve PHP, testes, e-mails, PDFs, exportações e templates com dourados.
+  A seleção de arquivos e regressões é manual e muda em cada tarefa; CI completo não pode
+  depender dessa seleção. Preserve PHPUnit sequencial ou paralelo, níveis do PHPStan e
+  decisões de cobertura/mutação/migrations do projeto.
 - **Arquivos que `difere`:** compare o do projeto com o modelo do kit. Proponha só o que falta
   (uma regra, uma extensão) e preserve o que é escolha do projeto.
 - **Projeto que já tinha uma versão própria destas peças** (como o nfdash, de onde o kit saiu):
@@ -122,6 +133,11 @@ Leia a saída:
   - acrescente a `extensoes` toda extensão `ext-*` do `require` do `composer.json` que falte na
     lista padrão (ex.: `bcmath`), senão o `composer install` do CI falha;
   - ligue `preparo: npm run dev` se os testes funcionais renderizam assets do Encore;
+  - em adoção por escopo, configure `comando-check` com o comando completo próprio do CI
+    (modelo `composer check:ci`), independente do manifesto; valide também o build de produção;
+  - ajuste `timeout-check` ao tempo real da suíte; scripts completos precisam desativar o
+    limite interno de cinco minutos do Composer. Para log/JUnit, configure `relatorios` e
+    `retencao-relatorios`; eles são opcionais e não ligam cobertura;
   - **(usuário)** pergunte se liga a mutação no CI (`mutacao: true`, limite em `mutacao-msi`):
     o job muta as linhas de `src/Domain` e `src/Entity` mudadas em cada push ou PR e reprova
     abaixo do limite, contando os mutantes não cobertos. Ligue depois do primeiro CI verde, para
@@ -153,6 +169,12 @@ vendor/bin/rigor-verificar --tudo
 
 Os dois últimos têm de passar. Mostre ao usuário o `git status` e o `git diff`. Commit, branch
 e push só quando o usuário pedir.
+
+Em instalação com escopo, valide também a decisão do hook (layout + manifesto usa leve;
+PHP volta ao direcionado; sem mudanças não repete), a reprovação de um lint inválido e o CI
+completo autorizado em ambiente limpo. Um verde leve é suficiente para encerrar tarefa de
+layout: não rode o direcionado por cima dele. Na instalação, confirme primeiro um verde
+direcionado para estabelecer a referência da worktree.
 
 ## Atualizar depois
 
