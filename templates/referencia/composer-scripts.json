@@ -20,8 +20,8 @@
         "@test"
     ],
     "check": [
-        "@check:rapido",
-        "npm run build"
+        "npm run build",
+        "@check:rapido"
     ],
     "cobertura": [
         "Composer\\Config::disableProcessTimeout",

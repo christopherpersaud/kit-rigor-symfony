@@ -26,6 +26,14 @@ on:
                 description: Comando depois das dependências, antes dos testes (ex. npm run dev, para os testes funcionais que renderizam as tags do Encore).
                 type: string
                 default: ''
+            preparo-cobertura:
+                description: Preparo exclusivo da cobertura; vazio usa o preparo comum.
+                type: string
+                default: ''
+            cache-phpstan:
+                description: Pastas do tmpDir do PHPStan para cache no check, uma por linha; vazio desliga.
+                type: string
+                default: ''
             comando-check:
                 description: O check completo.
                 type: string
@@ -87,12 +95,16 @@ jobs:
                   node-version: ${{ inputs.node-version }}
                   cache: npm
 
+            - name: Caminho do cache do Composer
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
             - name: Cache do Composer
               uses: actions/cache@v6
               with:
-                  path: ~/.composer/cache/files
-                  key: composer-${{ hashFiles('composer.lock') }}
-                  restore-keys: composer-
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Dependências
               run: |
@@ -103,8 +115,24 @@ jobs:
               if: inputs.preparo != ''
               run: ${{ inputs.preparo }}
 
+            # Depois do preparo: cache:clear do Symfony pode apagar var/cache/.
+            - name: Restaurar cache do PHPStan
+              if: inputs.cache-phpstan != ''
+              uses: actions/cache/restore@v6
+              with:
+                  path: ${{ inputs.cache-phpstan }}
+                  key: phpstan-${{ runner.os }}-php${{ inputs.php-version }}-${{ hashFiles('composer.lock', 'phpstan*.neon', 'phpstan*.neon.dist') }}-${{ github.run_id }}-${{ github.run_attempt }}
+                  restore-keys: phpstan-${{ runner.os }}-php${{ inputs.php-version }}-${{ hashFiles('composer.lock', 'phpstan*.neon', 'phpstan*.neon.dist') }}-
+
             - name: Check completo
               run: ${{ inputs.comando-check }}
+
+            - name: Salvar cache do PHPStan
+              if: ${{ !cancelled() && inputs.cache-phpstan != '' }}
+              uses: actions/cache/save@v6
+              with:
+                  path: ${{ inputs.cache-phpstan }}
+                  key: phpstan-${{ runner.os }}-php${{ inputs.php-version }}-${{ hashFiles('composer.lock', 'phpstan*.neon', 'phpstan*.neon.dist') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
     cobertura:
         name: cobertura
@@ -129,12 +157,16 @@ jobs:
                   node-version: ${{ inputs.node-version }}
                   cache: npm
 
+            - name: Caminho do cache do Composer
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
             - name: Cache do Composer
               uses: actions/cache@v6
               with:
-                  path: ~/.composer/cache/files
-                  key: composer-${{ hashFiles('composer.lock') }}
-                  restore-keys: composer-
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Dependências
               run: |
@@ -142,8 +174,8 @@ jobs:
                   if [ -f package-lock.json ]; then npm ci; fi
 
             - name: Preparo
-              if: inputs.preparo != ''
-              run: ${{ inputs.preparo }}
+              if: inputs.preparo-cobertura != '' || inputs.preparo != ''
+              run: ${{ inputs.preparo-cobertura || inputs.preparo }}
 
             - name: Cobertura e trava
               run: ${{ inputs.comando-cobertura }}
@@ -176,12 +208,16 @@ jobs:
                   node-version: ${{ inputs.node-version }}
                   cache: npm
 
+            - name: Caminho do cache do Composer
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
             - name: Cache do Composer
               uses: actions/cache@v6
               with:
-                  path: ~/.composer/cache/files
-                  key: composer-${{ hashFiles('composer.lock') }}
-                  restore-keys: composer-
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Dependências
               run: |
@@ -263,12 +299,16 @@ jobs:
                   coverage: none
                   tools: composer:v2
 
+            - name: Caminho do cache do Composer
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
             - name: Cache do Composer
               uses: actions/cache@v6
               with:
-                  path: ~/.composer/cache/files
-                  key: composer-${{ hashFiles('composer.lock') }}
-                  restore-keys: composer-
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-${{ runner.os }}-
 
             - name: Dependências
               run: composer install --no-interaction --no-progress --prefer-dist
