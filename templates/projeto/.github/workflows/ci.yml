@@ -17,8 +17,8 @@ permissions:
 
 jobs:
     rigor:
-        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.2.0).
-        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.2.0
+        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.3.1).
+        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.3.1
         with:
             php-version: '8.5'
             # Adoção por escopo: o CI precisa de um comando completo independente do manifesto.
@@ -27,8 +27,13 @@ jobs:
             # Relatórios opcionais (o comando acima precisa gerar esses arquivos).
             # relatorios: var/check/ci/
             # retencao-relatorios: 14
-            # Testes funcionais que renderizam as tags do Encore precisam do build de dev.
-            # preparo: npm run dev
+
+            # Com Encore: composer check gera produção antes do check rápido;
+            # só a cobertura precisa do build de dev.
+            # preparo-cobertura: npm run dev
+            # cache-phpstan: |
+            #     var/cache/phpstan
+            #     var/cache/phpstan-tests
             # Com Doctrine Migrations: banco vazio até a última migration, no MySQL e no MariaDB.
             # migrations: true
             # Mutação nas linhas de src/Domain e src/Entity mudadas pelo push ou pelo PR; reprova

@@ -124,6 +124,11 @@ Two levels, so the end of a turn stays fast and the slow parts still run on ever
   floor or adding a file to `sem_teste` is the user's call. Coverage only says a line ran, not
   that a test checked its result.
 
+The reusable CI workflow resolves the Composer cache directory dynamically. Optional
+`cache-phpstan` lists the PHPStan `tmpDir` folders, one per line. With Encore, build production
+before the quick check and use `preparo-cobertura` for the coverage job's development build;
+`preparo` remains the shared fallback for existing consumers.
+
 Run `composer check:rapido` yourself before saying a task is done; after a push, check that the
 CI went green.
 

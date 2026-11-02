@@ -132,12 +132,17 @@ Leia a saída:
     motivo no arquivo e proponha uma migration inicial como trabalho à parte;
   - acrescente a `extensoes` toda extensão `ext-*` do `require` do `composer.json` que falte na
     lista padrão (ex.: `bcmath`), senão o `composer install` do CI falha;
-  - ligue `preparo: npm run dev` se os testes funcionais renderizam assets do Encore;
   - em adoção por escopo, configure `comando-check` com o comando completo próprio do CI
     (modelo `composer check:ci`), independente do manifesto; valide também o build de produção;
   - ajuste `timeout-check` ao tempo real da suíte; scripts completos precisam desativar o
     limite interno de cinco minutos do Composer. Para log/JUnit, configure `relatorios` e
     `retencao-relatorios`; eles são opcionais e não ligam cobertura;
+
+  - com Encore, faça `composer check` gerar o build de produção antes do check rápido;
+    deixe `preparo` vazio e use `preparo-cobertura: npm run dev`, evitando build de dev extra
+    no check. `preparo` continua disponível para consumidores que precisam do comando comum;
+  - configure `cache-phpstan` com as pastas `tmpDir` das análises, uma por linha (ex.:
+    `var/cache/phpstan` e `var/cache/phpstan-tests`), nunca o cache inteiro do Symfony;
   - **(usuário)** pergunte se liga a mutação no CI (`mutacao: true`, limite em `mutacao-msi`):
     o job muta as linhas de `src/Domain` e `src/Entity` mudadas em cada push ou PR e reprova
     abaixo do limite, contando os mutantes não cobertos. Ligue depois do primeiro CI verde, para

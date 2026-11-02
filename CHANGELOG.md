@@ -12,6 +12,15 @@
   `retencao-relatorios` (14 dias). O job de check usa timeout interno do Composer de 30 minutos
   e shell com pipefail para preservar falhas quando o comando salva o log com tee.
 
+## 0.3.1 (2026-11-02)
+
+- Cache do Composer resolve a pasta real com `composer config cache-files-dir` em todos os
+  jobs e separa as chaves por sistema, corrigindo o cache que não era salvo nos runners.
+- Cache opcional do PHPStan no check (`cache-phpstan`, pastas de tmpDir, uma por linha), com
+  chave por execução e restauração incremental; mantém os caches de src e testes separados.
+- `preparo-cobertura` opcional permite testar o build de produção no check e usar o build de
+  desenvolvimento somente na cobertura, preservando `preparo` para os consumidores atuais.
+
 ## 0.3.0 (2026-10-29)
 
 - Verificação leve no fim do turno, opcional: `extra.rigor.verificar.leve` (`comando` e

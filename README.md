@@ -175,6 +175,32 @@ scripts completos, desative também o limite interno do Composer com
 `Composer\Config::disableProcessTimeout`. O passo de check usa Bash com `pipefail`, para que
 salvar a saída com `tee` preserve o código de falha.
 
+## Cache e builds no CI
+
+O workflow obtém o cache de downloads do Composer com `composer config cache-files-dir`,
+em vez de presumir uma pasta. O cache do npm continua gerenciado pelo `setup-node`.
+
+`cache-phpstan` aceita as pastas de `tmpDir`, uma por linha. É opcional e só roda no check,
+depois do preparo. Cada execução salva uma chave nova, incluindo sistema, versão do PHP, lock
+e configuração; a próxima restaura a mais recente compatível. O PHPStan invalida os resultados
+dos arquivos alterados. Não inclua o cache inteiro do Symfony nem bancos ou sessões de teste.
+
+`preparo` continua comum aos jobs. `preparo-cobertura`, quando preenchido, substitui o comando
+somente na cobertura. Para Encore, faça `composer check` executar `npm run build` **antes**
+do check rápido, deixe `preparo` vazio e configure:
+
+```yaml
+preparo-cobertura: npm run dev
+cache-phpstan: |
+    var/cache/phpstan
+    var/cache/phpstan-tests
+```
+
+Assim o check testa com assets de produção e a cobertura usa seu build de desenvolvimento,
+sem um build de desenvolvimento extra no check. Os jobs permanecem independentes e paralelos.
+Se a mutação estiver ligada e precisar de assets, configure seu preparo no comando de mutação
+ou mantenha o preparo comum. Os projetos existentes continuam com o mesmo comportamento.
+
 ## Formato de uma regra
 
 ```markdown
