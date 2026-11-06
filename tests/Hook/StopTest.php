@@ -36,25 +36,25 @@ final class StopTest extends TestCase
 
     public function testVerdeDeixaOTurnoTerminarEmSilencio(): void
     {
-        self::assertNull($this->hook('true')->executar(self::SESSAO));
+        self::assertNull($this->hook($this->comandoPhp('exit(0);'))->executar(self::SESSAO));
     }
 
     public function testFalhaBloqueiaComOMotivoNoFormatoDoClaudeEDoCodex(): void
     {
-        $saida = $this->hook('echo "1 teste falhou"; exit 1')->executar(self::SESSAO);
+        $saida = $this->hook($this->comandoPhp('echo "1 teste falhou"; exit(1);'))->executar(self::SESSAO);
 
         $json = json_decode((string) $saida, true);
         self::assertIsArray($json);
         self::assertSame('block', $json['decision']);
         self::assertIsString($json['reason']);
-        self::assertStringStartsWith('A verificação (echo "1 teste falhou"; exit 1) falhou (tentativa 1 de 3).', $json['reason']);
+        self::assertStringStartsWith(\sprintf('A verificação (%s) falhou (tentativa 1 de 3).', $this->comandoPhp('echo "1 teste falhou"; exit(1);')), $json['reason']);
         self::assertStringEndsWith("Fim da saída:\n\n1 teste falhou", $json['reason']);
         self::assertStringContainsString('não desligue a checagem nem a contorne', $json['reason']);
     }
 
     public function testDepoisDoLimiteDeixaTerminarComAvisoEZeraOContador(): void
     {
-        $hook = $this->hook('exit 1');
+        $hook = $this->hook($this->comandoPhp('exit(1);'));
         for ($tentativa = 1; $tentativa <= Stop::MAX_BLOQUEIOS; ++$tentativa) {
             self::assertStringContainsString(\sprintf('(tentativa %d de 3)', $tentativa), (string) $hook->executar(self::SESSAO));
         }
@@ -67,32 +67,32 @@ final class StopTest extends TestCase
 
     public function testOContadorEhPorSessaoEZeraQuandoFicaVerde(): void
     {
-        $this->hook('exit 1')->executar(self::SESSAO);
+        $this->hook($this->comandoPhp('exit(1);'))->executar(self::SESSAO);
 
-        self::assertStringContainsString('(tentativa 1 de 3)', (string) $this->hook('exit 1')->executar('{"session_id": "outra"}'));
-        self::assertNull($this->hook('true')->executar(self::SESSAO));
+        self::assertStringContainsString('(tentativa 1 de 3)', (string) $this->hook($this->comandoPhp('exit(1);'))->executar('{"session_id": "outra"}'));
+        self::assertNull($this->hook($this->comandoPhp('exit(0);'))->executar(self::SESSAO));
         $this->gravar('src/A.php', 'mudou');
-        self::assertStringContainsString('(tentativa 1 de 3)', (string) $this->hook('exit 1')->executar(self::SESSAO));
+        self::assertStringContainsString('(tentativa 1 de 3)', (string) $this->hook($this->comandoPhp('exit(1);'))->executar(self::SESSAO));
     }
 
     public function testIdDeSessaoNaoSaiDaPastaDeEstado(): void
     {
-        $this->hook('exit 1')->executar('{"session_id": "../../fora"}');
+        $this->hook($this->comandoPhp('exit(1);'))->executar('{"session_id": "../../fora"}');
 
         self::assertFileExists($this->pasta.'/var/check/bloqueios-______fora');
     }
 
     public function testSoLayoutMudouOHookRodaOLeveENomeiaEleNoMotivo(): void
     {
-        $this->hook('true')->executar(self::SESSAO);
-        $config = new Config($this->pasta, comandoVerificar: 'exit 1', comandoLeve: 'echo "Twig com erro"; exit 1', arquivosLeves: ['templates/*']);
+        $this->hook($this->comandoPhp('exit(0);'))->executar(self::SESSAO);
+        $config = new Config($this->pasta, comandoVerificar: $this->comandoPhp('exit(1);'), comandoLeve: $this->comandoPhp('echo "Twig com erro"; exit(1);'), arquivosLeves: ['templates/*']);
         $this->gravar('templates/a.html.twig', 'a');
 
         $json = json_decode((string) new Stop($config, new Verificador($config))->executar(self::SESSAO), true);
 
         self::assertIsArray($json);
         self::assertIsString($json['reason']);
-        self::assertStringStartsWith('A verificação (echo "Twig com erro"; exit 1) falhou (tentativa 1 de 3).', $json['reason']);
+        self::assertStringStartsWith(\sprintf('A verificação (%s) falhou (tentativa 1 de 3).', $this->comandoPhp('echo "Twig com erro"; exit(1);')), $json['reason']);
         self::assertStringEndsWith("Fim da saída:\n\nTwig com erro", $json['reason']);
     }
 
@@ -100,7 +100,7 @@ final class StopTest extends TestCase
     {
         putenv('VERIFICAR_DESLIGADO=1');
 
-        self::assertNull($this->hook('exit 1')->executar(self::SESSAO));
+        self::assertNull($this->hook($this->comandoPhp('exit(1);'))->executar(self::SESSAO));
     }
 
     public function testForaDeUmRepositorioGitNaoRoda(): void
@@ -108,7 +108,7 @@ final class StopTest extends TestCase
         $this->apagarPasta();
         mkdir($this->pasta);
 
-        self::assertNull($this->hook('exit 1')->executar(self::SESSAO));
+        self::assertNull($this->hook($this->comandoPhp('exit(1);'))->executar(self::SESSAO));
     }
 
     private function hook(string $comando): Stop

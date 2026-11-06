@@ -57,6 +57,20 @@ bug, see it fail, then fix. It costs a minute and proves the fix hit the actual 
 If the code and the spec disagree, the spec wins unless the user says otherwise: fix the
 code, or ask before changing the rule.
 
+## Harness portability
+
+The current agent must have repository and terminal access. Skills do not install hooks. If
+there is no configured, trusted and working Stop hook in this harness, explicitly run
+`php vendor/bin/rigor-verificar` before completing tasks with checked files changed. Keep full
+CI independent of the agent. Report failures or blocked checks accurately. Preserve the
+project's chosen checks, runner and platform; optional tools are not mandatory merely because
+they appear below. In PowerShell use `$env:NAME` for temporary variables and restore the old
+value afterwards; use `php vendor/bin/...` in terminals and `@php` in Composer scripts.
+
+Traceability validates ID references and scenario syntax. It cannot establish that each
+scenario has correct assertions; human review of specifications, tests and risky code remains
+necessary.
+
 ## Testing
 
 Always run tests with `composer test` (paratest, one process per core, coverage driver off),

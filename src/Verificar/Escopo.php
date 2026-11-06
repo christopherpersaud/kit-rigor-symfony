@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KitRigor\Verificar;
 
+use KitRigor\Caminho;
 use KitRigor\Config;
 
 /** Manifesto opcional: arquivos individuais e testes afetados, selecionados pelo projeto. */
@@ -81,6 +82,7 @@ final readonly class Escopo
             if (!\is_string($caminho) || '' === $caminho || str_starts_with($caminho, '-') || str_contains($caminho, '..')) {
                 throw new \InvalidArgumentException('Informe caminhos relativos de arquivos individuais.');
             }
+            $caminho = Caminho::normalizar($caminho);
             $real = realpath($raiz.'/'.$caminho);
             if (false === $real || !is_file($real) || !str_starts_with($real, $raiz.\DIRECTORY_SEPARATOR)) {
                 throw new \InvalidArgumentException('Arquivo inválido no escopo: '.$caminho);

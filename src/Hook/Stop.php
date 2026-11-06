@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KitRigor\Hook;
 
 use KitRigor\Config;
+use KitRigor\Verificar\Verificacao;
 use KitRigor\Verificar\Verificador;
 
 /**
@@ -40,7 +41,11 @@ final readonly class Stop
         $id = \is_array($sessao) && \is_string($sessao['session_id'] ?? null) ? $sessao['session_id'] : 'sem-sessao';
         $contador = $this->config->caminho(Verificador::PASTA_ESTADO.'/bloqueios-'.preg_replace('/[^A-Za-z0-9_-]/', '_', $id));
 
-        $verificacao = $this->verificador->verificar(permitirLeve: true);
+        try {
+            $verificacao = $this->verificador->verificar(permitirLeve: true);
+        } catch (\RuntimeException $erro) {
+            $verificacao = new Verificacao(Verificacao::FALHOU, $erro->getMessage(), Verificador::LOG, comando: $this->config->comandoVerificar);
+        }
         if ($verificacao->passou()) {
             @unlink($contador);
 

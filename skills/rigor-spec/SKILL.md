@@ -1,11 +1,18 @@
 ---
 name: rigor-spec
-description: Fluxo de spec para regra de negócio nova ou alterada num projeto com o kit de rigor - escrever a regra com ID e cenários Dado/quando/então no doc do módulo (docs/modulos), parar para aprovação do usuário, e só então implementar com um teste por cenário marcado com o ID. Também para converter um doc de módulo em spec e para bug que revela regra nunca escrita. Use quando a tarefa cria ou muda comportamento de negócio. Não use para ajuste visual, texto, refactor ou bug de regra já escrita.
+description: Write or update traceable business specifications and tests in a Symfony/PHP project using kit-rigor-symfony. Use for new or changed business behavior, converting module documentation to specifications, or bugs revealing an undocumented rule.
 ---
 
 # Spec de regra de negócio
 
-A spec é o contrato. O único ponto de revisão do usuário é o diff da spec. Depois de aprovado,
+## Ambiente e distribuição
+
+Requer acesso aos arquivos e ao terminal do projeto, PHP 8.4+, Git e o pacote Composer `christopherpersaud/kit-rigor-symfony` compatível com PHPUnit 12/13. A entrega por Agensi/MCP fornece as instruções; não instala a biblioteca ou hooks. Localize o pacote com `composer show christopherpersaud/kit-rigor-symfony --path`. Na ausência dele, explique o requisito e instale somente quando isso fizer parte do pedido autorizado. Preserve as decisões do projeto e não atualize sua plataforma por consequência.
+
+Sem hook Stop confiável e funcional no agente atual, rode `php vendor/bin/rigor-verificar` explicitamente antes de concluir mudanças em arquivos verificados. Se faltar acesso ao repositório ou execução, ofereça somente análise/spec e indique quais checks não foram executados.
+
+
+A rastreabilidade confere referências a IDs, não a correção das asserções nem a prova de cada cenário. A revisão humana permanece necessária. A spec é o contrato. A aprovação da spec é o ponto de decisão sobre o comportamento de negócio. Depois de aprovado,
 os valores esperados dos testes já estão fixados pelos cenários, e não pelo que o código faz.
 
 ## Quanto de spec a tarefa pede
@@ -71,7 +78,9 @@ mudar a regra.
 Use um teste dourado (`KitRigor\Dourado::xml()`, `html()`, `json()`, `texto()`). Quando a
 mudança da saída está na spec aprovada:
 
-1. Regenere com `ATUALIZAR_DOURADOS=1 composer test -- --filter <teste>`.
+1. Regenere com `ATUALIZAR_DOURADOS=1 composer test -- --filter <teste>` no Bash.
+   No PowerShell, defina `$env:ATUALIZAR_DOURADOS='1'`, rode o mesmo `composer test` e restaure
+   o valor anterior da variável ao terminar.
 2. Mostre o `git diff tests/Dourado` ao usuário.
 
 Nunca regenere só para fazer o teste passar.

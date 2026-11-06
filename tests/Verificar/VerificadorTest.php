@@ -26,7 +26,7 @@ final class VerificadorTest extends TestCase
 
     public function testRodaNaPrimeiraVezENaoRodaDeNovoSemMudanca(): void
     {
-        $verificador = $this->verificador('echo rodou >> var/contador.log');
+        $verificador = $this->verificador($this->comandoPhp('file_put_contents("var/contador.log", "rodou\n", FILE_APPEND);'));
 
         self::assertSame(Verificacao::VERDE, $verificador->verificar()->situacao);
         self::assertSame(Verificacao::SEM_MUDANCA, $verificador->verificar()->situacao);
@@ -35,7 +35,7 @@ final class VerificadorTest extends TestCase
 
     public function testMudancaNumArquivoVerificadoRodaDeNovo(): void
     {
-        $verificador = $this->verificador('true');
+        $verificador = $this->verificador($this->comandoPhp('exit(0);'));
         $verificador->verificar();
 
         $this->gravar('src/A.php', '<?php // mudou');
@@ -45,10 +45,19 @@ final class VerificadorTest extends TestCase
 
     public function testComTudoRodaMesmoSemMudanca(): void
     {
-        $verificador = $this->verificador('true');
+        $verificador = $this->verificador($this->comandoPhp('exit(0);'));
         $verificador->verificar();
 
         self::assertSame(Verificacao::VERDE, $verificador->verificar(mesmoSemMudanca: true)->situacao);
+    }
+
+    public function testFalhaNoGitNaoViraListaVaziaOuCheckVerde(): void
+    {
+        $this->gravar('quebrado/.git', 'gitdir: pasta-inexistente');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('git ls-files falhou');
+
+        new Verificador(new Config($this->pasta.'/quebrado', comandoVerificar: $this->comandoPhp('exit(0);')))->verificar();
     }
 
     public function testMarkdownEIgnoradosDoGitNaoContamMasOsDocsDeSpecSim(): void
@@ -57,14 +66,14 @@ final class VerificadorTest extends TestCase
         $this->gravar('ignorado.php', 'a');
         $this->gravar('docs/modulos/modulo-a.md', 'a');
 
-        self::assertSame(['.gitignore', 'docs/modulos/modulo-a.md', 'src/A.php'], $this->verificador('true')->arquivos());
+        self::assertSame(['.gitignore', 'docs/modulos/modulo-a.md', 'src/A.php'], $this->verificador($this->comandoPhp('exit(0);'))->arquivos());
     }
 
     public function testCaminhosEIgnoradosVemDaConfiguracao(): void
     {
         $this->gravar('src/B.php', 'b');
         $this->gravar('outro/C.php', 'c');
-        $config = new Config($this->pasta, comandoVerificar: 'true', caminhosVerificados: ['src'], ignorados: ['src/B.php']);
+        $config = new Config($this->pasta, comandoVerificar: $this->comandoPhp('exit(0);'), caminhosVerificados: ['src'], ignorados: ['src/B.php']);
 
         self::assertSame(['src/A.php'], new Verificador($config)->arquivos());
     }
@@ -72,7 +81,7 @@ final class VerificadorTest extends TestCase
     public function testArquivoApagadoMudaAImpressaoDigital(): void
     {
         $this->gravar('src/B.php', 'b');
-        $verificador = $this->verificador('true');
+        $verificador = $this->verificador($this->comandoPhp('exit(0);'));
         $antes = $verificador->impressaoDigital();
 
         unlink($this->pasta.'/src/B.php');
@@ -82,8 +91,8 @@ final class VerificadorTest extends TestCase
 
     public function testFalhaDevolveOFimDoLogSemCoresEApagaOVerde(): void
     {
-        $this->verificador('true')->verificar();
-        $verificador = $this->verificador('printf "\033[31mErro em X\033[0m\n\n  detalhe\n"; exit 3');
+        $this->verificador($this->comandoPhp('exit(0);'))->verificar();
+        $verificador = $this->verificador($this->comandoPhp('echo "\033[31mErro em X\033[0m\n\n  detalhe\n"; exit(3);'));
         $this->gravar('src/A.php', '<?php // mudou');
 
         $verificacao = $verificador->verificar();
@@ -98,7 +107,7 @@ final class VerificadorTest extends TestCase
 
     public function testOFimDoLogTemNoMaximoSessentaLinhas(): void
     {
-        $verificacao = $this->verificador('seq 1 100; exit 1')->verificar();
+        $verificacao = $this->verificador($this->comandoPhp('echo implode("\n", range(1, 100)); exit(1);'))->verificar();
 
         $linhas = explode("\n", $verificacao->trecho);
         self::assertCount(60, $linhas);
@@ -115,7 +124,7 @@ final class VerificadorTest extends TestCase
         $leve = $verificador->verificar(permitirLeve: true);
         $deNovo = $verificador->verificar(permitirLeve: true);
 
-        self::assertSame([Verificacao::VERDE, true, 'echo leve >> var/rodou.log'], [$leve->situacao, $leve->leve, $leve->comando]);
+        self::assertSame([Verificacao::VERDE, true, $this->comandoPhp('file_put_contents("var/rodou.log", "leve\n", FILE_APPEND);')], [$leve->situacao, $leve->leve, $leve->comando]);
         self::assertSame([Verificacao::SEM_MUDANCA, true], [$deNovo->situacao, $deNovo->leve]);
         self::assertSame("completo\nleve\n", $this->ler('var/rodou.log'));
     }
@@ -141,7 +150,7 @@ final class VerificadorTest extends TestCase
         $this->gravar('src/A.php', '<?php // mudou');
         $verificacao = $verificador->verificar(permitirLeve: true);
 
-        self::assertSame([Verificacao::VERDE, false, 'echo completo >> var/rodou.log'], [$verificacao->situacao, $verificacao->leve, $verificacao->comando]);
+        self::assertSame([Verificacao::VERDE, false, $this->comandoPhp('file_put_contents("var/rodou.log", "completo\n", FILE_APPEND);')], [$verificacao->situacao, $verificacao->leve, $verificacao->comando]);
     }
 
     public function testOVerdeLeveNaoContaComoCompleto(): void
@@ -179,7 +188,7 @@ final class VerificadorTest extends TestCase
     public function testFalhaNoLeveRodaDeNovoSemMudancaEMantemOVerdeCompleto(): void
     {
         $this->verificadorComLeve()->verificar(permitirLeve: true);
-        $verificador = new Verificador(new Config($this->pasta, comandoVerificar: 'true', comandoLeve: 'echo "lint:twig falhou"; exit 1', arquivosLeves: ['templates/*']));
+        $verificador = new Verificador(new Config($this->pasta, comandoVerificar: $this->comandoPhp('exit(0);'), comandoLeve: $this->comandoPhp('echo "lint:twig falhou"; exit(1);'), arquivosLeves: ['templates/*']));
         $this->gravar('templates/a.html.twig', 'a');
 
         $primeira = $verificador->verificar(permitirLeve: true);
@@ -192,7 +201,7 @@ final class VerificadorTest extends TestCase
 
     public function testSemComandoLeveConfiguradoRodaOCompleto(): void
     {
-        $verificador = $this->verificador('true');
+        $verificador = $this->verificador($this->comandoPhp('exit(0);'));
         $verificador->verificar(permitirLeve: true);
 
         $this->gravar('templates/a.html.twig', 'a');
@@ -204,8 +213,8 @@ final class VerificadorTest extends TestCase
     {
         return new Verificador(new Config(
             $this->pasta,
-            comandoVerificar: 'echo completo >> var/rodou.log',
-            comandoLeve: 'echo leve >> var/rodou.log',
+            comandoVerificar: $this->comandoPhp('file_put_contents("var/rodou.log", "completo\n", FILE_APPEND);'),
+            comandoLeve: $this->comandoPhp('file_put_contents("var/rodou.log", "leve\n", FILE_APPEND);'),
             arquivosLeves: ['templates/*', '!templates/pdf/*'],
         ));
     }
@@ -264,8 +273,8 @@ final class VerificadorTest extends TestCase
     {
         return new Verificador(new Config(
             $this->pasta,
-            comandoVerificar: 'echo completo >> var/rodou.log',
-            comandoLeve: 'echo leve >> var/rodou.log',
+            comandoVerificar: $this->comandoPhp('file_put_contents("var/rodou.log", "completo\n", FILE_APPEND);'),
+            comandoLeve: $this->comandoPhp('file_put_contents("var/rodou.log", "leve\n", FILE_APPEND);'),
             arquivosLeves: ['templates/*'],
             escopoVerificacao: 'selecao.json',
         ));

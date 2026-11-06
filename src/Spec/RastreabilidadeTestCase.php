@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KitRigor\Spec;
 
+use KitRigor\Caminho;
 use KitRigor\Config;
 use PHPUnit\Framework\TestCase;
 
@@ -196,9 +197,9 @@ abstract class RastreabilidadeTestCase extends TestCase
 
     private static function relativo(string $caminho): string
     {
-        $raiz = (string) realpath(static::config()->raiz);
+        $raiz = Caminho::normalizar((string) realpath(static::config()->raiz));
 
-        return u((string) realpath($caminho))->slice(u($raiz)->length())->trimStart('/')->toString();
+        return u(Caminho::normalizar((string) realpath($caminho)))->slice(u($raiz)->length())->trimStart('/')->toString();
     }
 
     private static function ler(string $arquivo): string

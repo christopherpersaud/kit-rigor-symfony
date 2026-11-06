@@ -14,6 +14,7 @@ final class InstaladorTest extends TestCase
     use PastaTemporaria;
 
     private const string KIT = __DIR__.'/../..';
+    private const string COMANDO_HOOK = 'php -r "require trim(shell_exec(\'git rev-parse --show-toplevel\')).\'/vendor/bin/rigor-hook-stop\';"';
 
     public function testProjetoVazioRecebeModelosBlocoSkillsEHooks(): void
     {
@@ -27,7 +28,7 @@ final class InstaladorTest extends TestCase
         self::assertSame("# CLAUDE.md\n\n@AGENTS.md\n", $this->ler('CLAUDE.md'));
         self::assertSame($this->doKit('skills/rigor-spec/SKILL.md'), $this->ler('.agents/skills/rigor-spec/SKILL.md'));
         self::assertSame($this->doKit('skills/rigor-spec/SKILL.md'), $this->ler('.claude/skills/rigor-spec/SKILL.md'));
-        self::assertTrue(is_executable($this->pasta.'/.githooks/pre-push'));
+        self::assertTrue('Windows' === \PHP_OS_FAMILY ? is_readable($this->pasta.'/.githooks/pre-push') : is_executable($this->pasta.'/.githooks/pre-push'));
     }
 
     public function testHooksNoFormatoDeCadaAgente(): void
@@ -36,13 +37,13 @@ final class InstaladorTest extends TestCase
 
         self::assertSame(['hooks' => ['Stop' => [['hooks' => [[
             'type' => 'command',
-            'command' => '"$CLAUDE_PROJECT_DIR"/vendor/bin/rigor-hook-stop',
+            'command' => self::COMANDO_HOOK,
             'timeout' => 300,
             'statusMessage' => 'Rodando a verificação no que mudou...',
         ]]]]]], json_decode($this->ler('.claude/settings.json'), true));
         self::assertSame(['hooks' => ['Stop' => [['hooks' => [[
             'type' => 'command',
-            'command' => 'php "$(git rev-parse --show-toplevel)/vendor/bin/rigor-hook-stop"',
+            'command' => self::COMANDO_HOOK,
             'timeout' => 300,
         ]]]]]], json_decode($this->ler('.codex/hooks.json'), true));
     }
@@ -108,7 +109,7 @@ final class InstaladorTest extends TestCase
                 ['hooks' => [['type' => 'command', 'command' => 'outro.sh']]],
                 ['hooks' => [[
                     'type' => 'command',
-                    'command' => '"$CLAUDE_PROJECT_DIR"/vendor/bin/rigor-hook-stop',
+                    'command' => self::COMANDO_HOOK,
                     'timeout' => 300,
                     'statusMessage' => 'Rodando a verificação no que mudou...',
                 ]]],
@@ -152,6 +153,78 @@ final class InstaladorTest extends TestCase
 
         self::assertNotEmpty($acoes);
         self::assertSame([], $this->conteudos());
+    }
+
+    public function testPerfilEssencialSemAgentesNaoInstalaArquiteturaCiOuHooks(): void
+    {
+        new Instalador($this->pasta, self::KIT, agentes: [], perfil: 'essencial')->instalar();
+
+        self::assertFileExists($this->pasta.'/tests/Spec/RastreabilidadeTest.php');
+        self::assertFileExists($this->pasta.'/.agents/skills/rigor-instalar/references/instalacao.md');
+        self::assertStringContainsString('perfil essencial', $this->ler('AGENTS.md'));
+        foreach (['.claude', '.codex', 'CLAUDE.md', 'phpstan.dist.neon', 'infection.json5', '.github/workflows/ci.yml', 'tests/cobertura.php'] as $arquivo) {
+            self::assertFileDoesNotExist($this->pasta.'/'.$arquivo);
+        }
+    }
+
+    public function testSelecionaIntegracoesSemAtivarClaudeOuCodex(): void
+    {
+        $this->gravar('.github/copilot-instructions.md', 'Instrução existente.');
+        new Instalador($this->pasta, self::KIT, agentes: ['cursor', 'copilot', 'gemini', 'opencode'])->instalar();
+
+        self::assertStringContainsString('AGENTS.md', $this->ler('GEMINI.md'));
+        self::assertSame('Instrução existente.', $this->ler('.github/copilot-instructions.md'));
+        self::assertFileDoesNotExist($this->pasta.'/.claude/settings.json');
+        self::assertFileDoesNotExist($this->pasta.'/.codex/hooks.json');
+    }
+
+    public function testAgenteInvalidoNaoGravaUmaInstalacaoParcial(): void
+    {
+        try {
+            new Instalador($this->pasta, self::KIT, agentes: ['desconhecido'])->instalar();
+            self::fail('Agente inválido foi aceito.');
+        } catch (\InvalidArgumentException) {
+            self::assertSame([], $this->conteudos());
+        }
+    }
+
+    public function testAtualizaHookAntigoPreservandoOutrosHooks(): void
+    {
+        $this->gravar('.codex/hooks.json', '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"outro"},{"type":"command","command":"php antigo/rigor-hook-stop"}]}]}}');
+        $this->instalar();
+
+        $config = json_decode($this->ler('.codex/hooks.json'), true);
+        self::assertIsArray($config);
+        $json = json_encode($config, \JSON_THROW_ON_ERROR);
+        self::assertStringContainsString('outro', $json);
+        self::assertStringNotContainsString('antigo/', $json);
+        self::assertSame(1, substr_count($json, 'rigor-hook-stop'));
+        self::assertSame(Acao::IGUAL, $this->instalar()['.codex/hooks.json']->tipo);
+    }
+
+    public function testComandoDoHookRecebeJsonEmSubpastaDeProjetoComEspacos(): void
+    {
+        $projeto = $this->pasta.'/projeto com espaços';
+        mkdir($projeto.'/sub pasta', 0o777, true);
+        $git = proc_open(['git', 'init', '-q', $projeto], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($git);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($git));
+        new Instalador($projeto, self::KIT)->instalar();
+        mkdir($projeto.'/vendor/bin', 0o777, true);
+        file_put_contents($projeto.'/vendor/bin/rigor-hook-stop', '<?php echo stream_get_contents(STDIN);');
+
+        $processo = proc_open(self::COMANDO_HOOK, [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $projeto.'/sub pasta');
+        self::assertIsResource($processo);
+        fwrite($pipes[0], '{"session_id":"teste"}');
+        fclose($pipes[0]);
+        $saida = stream_get_contents($pipes[1]);
+        $erro = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($processo), (string) $erro);
+        self::assertSame('{"session_id":"teste"}', $saida);
     }
 
     /** @return array<string, Acao> por caminho */

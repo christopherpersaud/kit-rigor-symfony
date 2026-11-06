@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KitRigor\Instalador;
 
 use Composer\InstalledVersions;
+use KitRigor\Caminho;
 
 use function Symfony\Component\String\u;
 
@@ -28,6 +29,7 @@ final class Instalador
     public const string PACOTE = 'christopherpersaud/kit-rigor-symfony';
     public const string INICIO = '<!-- kit-rigor:inicio';
     public const string FIM = '<!-- kit-rigor:fim -->';
+    public const array AGENTES = ['claude', 'codex', 'cursor', 'copilot', 'gemini', 'opencode'];
 
     /** Trecho que identifica o hook do kit nos arquivos de configuração dos agentes. */
     private const string HOOK = 'rigor-hook-stop';
@@ -35,11 +37,20 @@ final class Instalador
     /** @var list<Acao> */
     private array $acoes = [];
 
+    /** @param list<string> $agentes integrações opcionais; .agents/skills e AGENTS.md são sempre instalados */
     public function __construct(
         private readonly string $projeto,
         private readonly string $kit,
         private readonly bool $simular = false,
+        private readonly array $agentes = ['claude', 'codex'],
+        private readonly string $perfil = 'completo',
     ) {
+        if ([] !== array_diff($agentes, self::AGENTES)) {
+            throw new \InvalidArgumentException('Agente inválido. Use '.implode(', ', self::AGENTES).' ou nenhum.');
+        }
+        if (!\in_array($perfil, ['essencial', 'completo'], true)) {
+            throw new \InvalidArgumentException('Perfil inválido. Use essencial ou completo.');
+        }
     }
 
     /** @return list<Acao> */
@@ -48,10 +59,21 @@ final class Instalador
         $this->acoes = [];
         $this->copiarModelos();
         $this->blocoDoAgentsMd();
-        $this->claudeMd();
+        if (\in_array('claude', $this->agentes, true)) {
+            $this->claudeMd();
+        }
+        foreach (['gemini' => 'GEMINI.md', 'copilot' => '.github/copilot-instructions.md'] as $agente => $arquivo) {
+            if (\in_array($agente, $this->agentes, true)) {
+                $this->instrucoesDoAgente($arquivo);
+            }
+        }
         $this->skills();
-        $this->hookDoClaude();
-        $this->hookDoCodex();
+        if (\in_array('claude', $this->agentes, true)) {
+            $this->hookDoClaude();
+        }
+        if (\in_array('codex', $this->agentes, true)) {
+            $this->hookDoCodex();
+        }
         $this->scriptsDoComposer();
 
         return $this->acoes;
@@ -61,10 +83,13 @@ final class Instalador
     {
         $modelos = $this->kit.'/templates/projeto';
         foreach ($this->arquivosEm($modelos) as $relativo) {
+            if ('essencial' === $this->perfil && !\in_array($relativo, ['tests/Spec/RastreabilidadeTest.php', 'docs/modulos/README.md'], true)) {
+                continue;
+            }
             $destino = $this->projeto.'/'.$relativo;
             $conteudo = (string) file_get_contents($modelos.'/'.$relativo);
             if (!file_exists($destino)) {
-                $this->gravar($destino, $conteudo, is_executable($modelos.'/'.$relativo));
+                $this->gravar($destino, $conteudo, '.githooks/pre-push' === $relativo || is_executable($modelos.'/'.$relativo));
                 $this->acoes[] = new Acao(Acao::CRIADO, $relativo);
             } elseif ((string) file_get_contents($destino) === $conteudo) {
                 $this->acoes[] = new Acao(Acao::IGUAL, $relativo);
@@ -81,7 +106,7 @@ final class Instalador
             "%s %s: gerado por vendor/bin/rigor instalar; mude no kit, não aqui -->\n%s\n%s",
             self::INICIO,
             $versao,
-            u((string) file_get_contents($this->kit.'/templates/AGENTS.bloco.md'))->trimEnd(),
+            u((string) file_get_contents($this->kit.'/templates/'.('essencial' === $this->perfil ? 'AGENTS.essencial.bloco.md' : 'AGENTS.bloco.md')))->trimEnd(),
             self::FIM,
         );
 
@@ -130,7 +155,11 @@ final class Instalador
     {
         foreach (glob($this->kit.'/skills/rigor-*', \GLOB_ONLYDIR) ?: [] as $skill) {
             $nome = basename($skill);
-            foreach (['.agents/skills', '.claude/skills'] as $pasta) {
+            $pastas = ['.agents/skills'];
+            if (\in_array('claude', $this->agentes, true)) {
+                $pastas[] = '.claude/skills';
+            }
+            foreach ($pastas as $pasta) {
                 $destino = $this->projeto.'/'.$pasta.'/'.$nome;
                 $relativo = $pasta.'/'.$nome;
                 $novos = [];
@@ -161,7 +190,7 @@ final class Instalador
     {
         $this->acrescentarHook('.claude/settings.json', [
             'type' => 'command',
-            'command' => '"$CLAUDE_PROJECT_DIR"/vendor/bin/'.self::HOOK,
+            'command' => self::comandoDoHook(),
             'timeout' => 300,
             'statusMessage' => 'Rodando a verificação no que mudou...',
         ]);
@@ -172,7 +201,7 @@ final class Instalador
     {
         $this->acrescentarHook('.codex/hooks.json', [
             'type' => 'command',
-            'command' => 'php "$(git rev-parse --show-toplevel)/vendor/bin/'.self::HOOK.'"',
+            'command' => self::comandoDoHook(),
             'timeout' => 300,
         ]);
     }
@@ -183,12 +212,6 @@ final class Instalador
         $caminho = $this->projeto.'/'.$relativo;
         $existia = is_file($caminho);
         $texto = $existia ? (string) file_get_contents($caminho) : '{}';
-        if (u($texto)->containsAny(self::HOOK)) {
-            $this->acoes[] = new Acao(Acao::IGUAL, $relativo, 'hook Stop do kit');
-
-            return;
-        }
-
         $config = json_decode($texto);
         if (!$config instanceof \stdClass) {
             $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'não é um objeto JSON válido: acrescente o hook Stop à mão (modelo no README do kit)');
@@ -201,10 +224,53 @@ final class Instalador
 
             return;
         }
-        $config->hooks->Stop = [...(\is_array($config->hooks->Stop ?? null) ? $config->hooks->Stop : []), ['hooks' => [$comando]]];
+        $stop = $config->hooks->Stop ?? [];
+        if (!\is_array($stop)) {
+            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, '"Stop" não é uma lista: confira o hook à mão');
+
+            return;
+        }
+        $encontrou = false;
+        foreach ($stop as $grupo) {
+            if (!$grupo instanceof \stdClass || !\is_array($grupo->hooks ?? null)) {
+                continue;
+            }
+            foreach ($grupo->hooks as $indice => $hook) {
+                if ($hook instanceof \stdClass && \is_string($hook->command ?? null) && str_contains($hook->command, self::HOOK)) {
+                    // Atualiza só a entrada gerenciada pelo kit; preserva os hooks do projeto.
+                    $grupo->hooks[$indice] = (object) $comando;
+                    $encontrou = true;
+                }
+            }
+        }
+        $config->hooks->Stop = $encontrou ? $stop : [...$stop, (object) ['hooks' => [(object) $comando]]];
+
+        if (json_decode($texto) == $config) {
+            $this->acoes[] = new Acao(Acao::IGUAL, $relativo, 'hook Stop do kit');
+
+            return;
+        }
 
         $this->gravar($caminho, json_encode($config, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR)."\n");
         $this->acoes[] = new Acao($existia ? Acao::ATUALIZADO : Acao::CRIADO, $relativo, 'hook Stop do kit');
+    }
+
+    /** Sem expansão $() ou variáveis do shell: funciona em Bash, cmd e PowerShell, inclusive em subpastas. */
+    private static function comandoDoHook(): string
+    {
+        return 'php -r "require trim(shell_exec(\'git rev-parse --show-toplevel\')).\'/vendor/bin/'.self::HOOK.'\';"';
+    }
+
+    private function instrucoesDoAgente(string $arquivo): void
+    {
+        if (!is_file($this->projeto.'/'.$arquivo)) {
+            $this->gravar($this->projeto.'/'.$arquivo, "Read AGENTS.md in the project root and follow its instructions, including the final verification.\n");
+            $this->acoes[] = new Acao(Acao::CRIADO, $arquivo, 'remete ao AGENTS.md');
+        } elseif (!str_contains((string) file_get_contents($this->projeto.'/'.$arquivo), 'AGENTS.md')) {
+            $this->acoes[] = new Acao(Acao::DIFERE, $arquivo, 'acrescente uma instrução para ler AGENTS.md na raiz; arquivo preservado');
+        } else {
+            $this->acoes[] = new Acao(Acao::IGUAL, $arquivo);
+        }
     }
 
     private function scriptsDoComposer(): void
@@ -213,7 +279,8 @@ final class Instalador
         $projeto = json_decode((string) @file_get_contents($this->projeto.'/composer.json'), true);
         $existentes = \is_array($projeto) && \is_array($projeto['scripts'] ?? null) ? $projeto['scripts'] : [];
 
-        $faltam = array_values(array_diff(array_keys(\is_array($modelo) ? $modelo : []), array_keys($existentes)));
+        $esperados = 'essencial' === $this->perfil ? ['test', 'check:rapido', 'check'] : array_keys(\is_array($modelo) ? $modelo : []);
+        $faltam = array_values(array_diff($esperados, array_keys($existentes)));
         if ([] === $faltam) {
             $this->acoes[] = new Acao(Acao::IGUAL, 'composer.json', 'scripts do kit');
 
@@ -265,7 +332,7 @@ final class Instalador
                 continue;
             }
             if ($item->isFile()) {
-                $arquivos[] = u($item->getPathname())->slice(u($pasta)->length() + 1)->toString();
+                $arquivos[] = Caminho::normalizar(u($item->getPathname())->slice(u($pasta)->length() + 1)->toString());
             }
         }
         sort($arquivos);

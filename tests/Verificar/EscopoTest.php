@@ -87,7 +87,10 @@ final class EscopoTest extends TestCase
     {
         $fora = tempnam(sys_get_temp_dir(), 'rigor-fora-');
         self::assertIsString($fora);
-        symlink($fora, $this->pasta.'/externo.php');
+        if (!@symlink($fora, $this->pasta.'/externo.php')) {
+            unlink($fora);
+            self::markTestSkipped('O sistema não permitiu criar um link simbólico; este caso também roda no CI Linux.');
+        }
 
         try {
             $this->expectException(\InvalidArgumentException::class);

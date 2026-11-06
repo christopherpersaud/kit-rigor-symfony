@@ -50,6 +50,24 @@ final class ModeloEscopoTest extends TestCase
         self::assertSame(9, $this->executar('leve')[0]);
     }
 
+    public function testAssetsExecutamOBuildTambemComNpmCmdNoWindows(): void
+    {
+        $this->gravar('assets/app.js', 'console.log(1);');
+        $this->manifesto(['assets/app.js']);
+        $this->gravar('bin/npm', "#!/bin/sh\necho NPM_BUILD\n");
+        $this->gravar('bin/npm.cmd', "@echo NPM_BUILD\r\n");
+        chmod($this->pasta.'/bin/npm', 0o755);
+        $path = getenv('PATH');
+        putenv('PATH='.$this->pasta.'/bin'.\PATH_SEPARATOR.(false === $path ? '' : $path));
+        try {
+            [$codigo, $saida] = $this->executar('check');
+            self::assertSame(0, $codigo);
+            self::assertStringContainsString('NPM_BUILD', $saida);
+        } finally {
+            false === $path ? putenv('PATH') : putenv('PATH='.$path);
+        }
+    }
+
     public function testLeveRecusaPhpAntesDeExecutarFerramentas(): void
     {
         $this->manifesto(['src/Servico.php']);

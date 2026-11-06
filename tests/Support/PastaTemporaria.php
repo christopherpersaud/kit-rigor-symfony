@@ -46,4 +46,13 @@ trait PastaTemporaria
         exec(\sprintf('git -C %s init -q 2>&1', escapeshellarg($this->pasta)), $saida, $codigo);
         self::assertSame(0, $codigo, implode("\n", $saida));
     }
+
+    /** Executa PHP real, sem depender de true, printf, seq ou redirecionamentos do shell. */
+    private function comandoPhp(string $codigo): string
+    {
+        $arquivo = 'var/comandos/'.sha1($codigo).'.php';
+        $this->gravar($arquivo, '<?php '.$codigo);
+
+        return escapeshellarg(\PHP_BINARY).' '.escapeshellarg($this->pasta.'/'.$arquivo);
+    }
 }

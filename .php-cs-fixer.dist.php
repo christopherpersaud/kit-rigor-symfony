@@ -2,7 +2,7 @@
 
 $finder = (new PhpCsFixer\Finder())
     ->in([__DIR__.'/src', __DIR__.'/tests', __DIR__.'/templates'])
-    ->append([__DIR__.'/bin/rigor', __DIR__.'/bin/rigor-verificar', __DIR__.'/bin/rigor-cobertura', __DIR__.'/bin/rigor-hook-stop'])
+    ->append([__DIR__.'/bin/rigor', __DIR__.'/bin/rigor-verificar', __DIR__.'/bin/rigor-cobertura', __DIR__.'/bin/rigor-hook-stop', __DIR__.'/bin/rigor-empacotar'])
     ->exclude(['Fixtures'])
 ;
 

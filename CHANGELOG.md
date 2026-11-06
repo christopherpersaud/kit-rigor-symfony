@@ -1,6 +1,20 @@
 # Changelog
 
-## Não publicado
+## 0.4.0 (2026-11-06)
+
+- Suporte ao Windows nativo: dispositivo NUL, caminhos normalizados no instalador, specs,
+  cobertura e escopo; testes com processos PHP portáteis e arquivos LF. Falha no Git nunca
+  é tratada como uma seleção vazia aprovada.
+- Instalador: `--perfil=essencial|completo` e `--agentes=...|nenhum`, preservando os padrões
+  anteriores. Integrações existentes não são removidas. Hooks gerenciados antigos são atualizados
+  para um comando portátil, preservando os outros hooks.
+- Skills independentes do harness, requisitos explícitos, guia de instalação incluído e
+  verificação manual obrigatória quando não há hook funcional. Ferramentas opcionais por adoção.
+- `composer package:agensi` gera um pack de instruções e referências sem a biblioteca nem vendor;
+  texto de publicação e checklist de release. Manifests alinhados à versão 0.4.0.
+- CI próprio com PHP 8.4/8.5 no Ubuntu e Windows, teste de distribuição, seleção de agentes e
+  execução real do comando do hook em projeto com espaços e sessão em subpasta.
+- Documentação explicita limites da rastreabilidade e mantém a revisão humana.
 
 - Adoção por escopo opcional: `extra.rigor.verificar.escopo` e `KitRigor\Verificar\Escopo`
   validam arquivos/testes individuais. Atualizar o manifesto junto com uma tela permite o

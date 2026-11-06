@@ -1,0 +1,42 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+// Só instruções e referências: a biblioteca continua sendo distribuída pelo Composer.
+$raiz = dirname(__DIR__);
+$destino = $argv[1] ?? $raiz.'/dist/kit-rigor-symfony-agensi.zip';
+if (!class_exists(ZipArchive::class)) {
+    fwrite(STDERR, "Instale a extensão zip do PHP para gerar o pacote da Agensi.\n");
+    exit(1);
+}
+if (!is_dir(dirname($destino))) {
+    mkdir(dirname($destino), 0o775, true);
+}
+$arquivos = ['README.md' => $raiz.'/packaging/agensi/README.md', 'LICENSE' => $raiz.'/LICENSE'];
+$itens = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($raiz.'/skills', FilesystemIterator::SKIP_DOTS));
+foreach ($itens as $item) {
+    if (!$item instanceof SplFileInfo || !$item->isFile()) {
+        continue;
+    }
+    $relativo = str_replace('\\', '/', substr($item->getPathname(), strlen($raiz) + 1));
+    if (!str_ends_with($relativo, '.md')) {
+        throw new RuntimeException('Arquivo inesperado na distribuição: '.$relativo);
+    }
+    $arquivos[$relativo] = $item->getPathname();
+}
+ksort($arquivos);
+$zip = new ZipArchive();
+if (true !== $zip->open($destino, ZipArchive::CREATE | ZipArchive::OVERWRITE)) {
+    throw new RuntimeException('Não foi possível criar '.$destino);
+}
+foreach ($arquivos as $nome => $origem) {
+    if (!$zip->addFile($origem, $nome)) {
+        throw new RuntimeException('Não foi possível adicionar '.$nome);
+    }
+    $zip->setMtimeName($nome, 315532800);
+}
+if (!$zip->close()) {
+    throw new RuntimeException('Não foi possível finalizar '.$destino);
+}
+echo 'Pacote Agensi: '.$destino.' ('.count($arquivos)." arquivos; sem vendor ou executáveis).\n";

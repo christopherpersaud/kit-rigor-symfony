@@ -96,13 +96,15 @@ final readonly class Verificador
     public function arquivos(): array
     {
         $comando = array_merge(['git', 'ls-files', '-c', '-o', '--exclude-standard', '--deduplicate', '-z', '--'], $this->config->caminhosVerificados);
-        $git = proc_open($comando, [1 => ['pipe', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $this->config->raiz);
+        $git = proc_open($comando, [1 => ['pipe', 'w'], 2 => ['file', self::dispositivoNulo(), 'w']], $pipes, $this->config->raiz);
         if (false === $git) {
-            return [];
+            throw new \RuntimeException('Não foi possível executar git ls-files.');
         }
         $saida = (string) stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        proc_close($git);
+        if (0 !== proc_close($git)) {
+            throw new \RuntimeException('git ls-files falhou; confira o Git e a raiz do projeto.');
+        }
 
         $specs = u($this->config->specs)->trimEnd('/')->append('/');
         $arquivos = [];
@@ -189,7 +191,7 @@ final readonly class Verificador
         if (false === $log) {
             return new Verificacao(Verificacao::FALHOU, 'não deu para gravar '.self::LOG.'.', self::LOG, comando: $comando, leve: $leve);
         }
-        $processo = proc_open($comando, [0 => ['file', '/dev/null', 'r'], 1 => $log, 2 => $log], $pipes, $this->config->raiz);
+        $processo = proc_open($comando, [0 => ['file', self::dispositivoNulo(), 'r'], 1 => $log, 2 => $log], $pipes, $this->config->raiz);
         $codigo = false === $processo ? 127 : proc_close($processo);
         fclose($log);
         $segundos = (int) round(microtime(true) - $inicio);
@@ -210,6 +212,11 @@ final readonly class Verificador
         }
 
         return false;
+    }
+
+    private static function dispositivoNulo(): string
+    {
+        return 'Windows' === \PHP_OS_FAMILY ? 'NUL' : '/dev/null';
     }
 
     /** As últimas 60 linhas não vazias do log, sem as cores do terminal. */

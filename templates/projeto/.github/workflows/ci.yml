@@ -17,8 +17,8 @@ permissions:
 
 jobs:
     rigor:
-        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.3.1).
-        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.3.1
+        # Fixe a mesma versão do kit que está no composer.lock (ex.: @v0.4.0).
+        uses: christopherpersaud/kit-rigor-symfony/.github/workflows/php-check.yml@v0.4.0
         with:
             php-version: '8.5'
             # Adoção por escopo: o CI precisa de um comando completo independente do manifesto.

@@ -18,12 +18,29 @@ $argumentos = is_array($_SERVER['argv'] ?? null) ? array_values(array_filter($_S
 
 $comando = $argumentos[1] ?? '';
 if ('instalar' !== $comando) {
-    fwrite(STDERR, "Uso: vendor/bin/rigor instalar [--simular]\n");
+    fwrite(STDERR, "Uso: php vendor/bin/rigor instalar [--simular] [--agentes=claude,codex|nenhum] [--perfil=essencial|completo]\n");
     exit('' === $comando || in_array($comando, ['-h', '--help', 'ajuda'], true) ? 0 : 1);
 }
 
 $simular = in_array('--simular', $argumentos, true);
-$acoes = (new Instalador(Config::doProjeto()->raiz, dirname(__DIR__), $simular))->instalar();
+$agentes = ['claude', 'codex'];
+$perfil = 'completo';
+try {
+    foreach (array_slice($argumentos, 2) as $argumento) {
+        if (str_starts_with($argumento, '--agentes=')) {
+            $lista = substr($argumento, strlen('--agentes='));
+            $agentes = 'nenhum' === $lista ? [] : array_values(array_unique(explode(',', $lista)));
+        } elseif (str_starts_with($argumento, '--perfil=')) {
+            $perfil = substr($argumento, strlen('--perfil='));
+        } elseif ('--simular' !== $argumento) {
+            throw new InvalidArgumentException('Opção desconhecida: '.$argumento);
+        }
+    }
+    $acoes = (new Instalador(Config::doProjeto()->raiz, dirname(__DIR__), $simular, $agentes, $perfil))->instalar();
+} catch (InvalidArgumentException $erro) {
+    fwrite(STDERR, $erro->getMessage()."\n");
+    exit(2);
+}
 
 echo $simular ? "Simulação: nada foi gravado.\n\n" : '';
 foreach ($acoes as $acao) {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace KitRigor\Cobertura;
 
+use KitRigor\Caminho;
+
 use function Symfony\Component\String\u;
 
 /**
@@ -88,11 +90,11 @@ final readonly class Trava
      */
     private function medir(\SimpleXMLElement $xml): array
     {
-        $raiz = u($this->raiz)->trimEnd('/')->append('/');
+        $raiz = u(Caminho::normalizar($this->raiz))->trimEnd('/')->append('/');
         $pastas = [];
         $zerados = [];
         foreach ($xml->xpath('//file') ?: [] as $arquivo) {
-            $nome = u((string) $arquivo['name']);
+            $nome = u(Caminho::normalizar((string) $arquivo['name']));
             $caminho = ($nome->startsWith($raiz->toString()) ? $nome->slice($raiz->length()) : $nome)->toString();
             $linhas = (int) $arquivo->metrics['statements'];
             $cobertas = (int) $arquivo->metrics['coveredstatements'];
@@ -100,7 +102,7 @@ final readonly class Trava
                 continue;
             }
 
-            $pasta = $this->pasta(u($caminho)->trimPrefix(u($this->fonte)->trimEnd('/')->append('/')->toString())->toString());
+            $pasta = $this->pasta(u($caminho)->trimPrefix(u(Caminho::normalizar($this->fonte))->trimEnd('/')->append('/')->toString())->toString());
             $pastas[$pasta][0] = ($pastas[$pasta][0] ?? 0) + $linhas;
             $pastas[$pasta][1] = ($pastas[$pasta][1] ?? 0) + $cobertas;
             if (0 === $cobertas) {

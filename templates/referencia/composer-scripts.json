@@ -16,7 +16,7 @@
         "php-cs-fixer fix --dry-run --diff --show-progress=none",
         "npm run lint -- --cache --cache-location var/cache/eslint/",
         "npm run test:js",
-        "test -f public/build/entrypoints.json || npm run dev",
+        "@php -r \"exit(is_file('public/build/entrypoints.json') ? 0 : 1);\" || npm run dev",
         "@test"
     ],
     "check": [
@@ -33,7 +33,7 @@
     ],
     "mutacao:diff": [
         "Composer\\Config::disableProcessTimeout",
-        "git fetch -q origin master || true",
+        "git fetch -q origin master",
         "@php -d pcov.enabled=1 vendor/bin/infection --only-covering-test-cases --git-diff-lines --git-diff-base=origin/master"
     ]
 }

@@ -12,6 +12,7 @@ parameters:
         - bin/rigor-verificar
         - bin/rigor-cobertura
         - bin/rigor-hook-stop
+        - bin/rigor-empacotar
     excludePaths:
         - tests/Fixtures/*
     tmpDir: var/cache/phpstan

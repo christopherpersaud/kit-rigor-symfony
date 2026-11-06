@@ -1,11 +1,18 @@
 ---
 name: rigor-mutacao
-description: Teste de mutação com Infection num projeto com o kit de rigor - quando roda (no CI, se o projeto ligou o job de mutação, ou só a pedido do usuário), como rodar nas linhas alteradas (composer mutacao:diff) ou em arquivos inteiros (composer mutacao), e como tratar mutantes que escaparam ou são equivalentes. Use quando o usuário pedir mutação, Infection ou "testar os testes", ao terminar uma mudança em src/Domain ou src/Entity num projeto com a mutação no CI, e ao fechar um turno que mudou PHP em src/ para decidir a recomendação.
+description: Run and interpret Infection mutation tests in a Symfony/PHP project using kit-rigor-symfony. Use when requested to test the tests, investigate surviving mutants, or validate changed code when the project has already enabled mutation testing.
 ---
 
 # Teste de mutação
 
-O Infection muda o código: inverte uma condição, apaga uma chamada, desloca um limite. Depois
+## Ambiente e distribuição
+
+Requer acesso aos arquivos e ao terminal do projeto, PHP 8.4+, Git e o pacote Composer `christopherpersaud/kit-rigor-symfony` compatível com PHPUnit 12/13. A entrega por Agensi/MCP fornece as instruções; não instala a biblioteca ou hooks. Localize o pacote com `composer show christopherpersaud/kit-rigor-symfony --path`. Na ausência dele, explique o requisito e instale somente quando isso fizer parte do pedido autorizado. Preserve as decisões do projeto e não atualize sua plataforma por consequência.
+
+Sem hook Stop confiável e funcional no agente atual, rode `php vendor/bin/rigor-verificar` explicitamente antes de concluir mudanças em arquivos verificados. Se faltar acesso ao repositório ou execução, ofereça somente análise/spec e indique quais checks não foram executados.
+
+
+Requer também Infection e um driver de cobertura instalado e habilitado. Não habilite mutação apenas porque a skill foi carregada. O Infection muda o código: inverte uma condição, apaga uma chamada, desloca um limite. Depois
 roda os testes que cobrem a linha mutada. Se um mutante sobrevive, aquele comportamento não é
 provado por nenhum teste. A cobertura diz que a linha rodou; a mutação diz se algum teste
 conferiu o resultado.

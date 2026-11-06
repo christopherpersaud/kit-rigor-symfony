@@ -1,12 +1,15 @@
 # kit-rigor-symfony
 
 Um conjunto de verificações automáticas para projetos Symfony em que boa parte do código é
-escrita por agentes (Claude Code, Codex). A ideia é reduzir a revisão humana a um ponto só:
-**aprovar a spec**. O resto é conferido por máquina, a cada turno do agente e a cada push.
+escrita por agentes de programação. O kit liga regras documentadas, referências nos testes e verificações automáticas.
+**Ele apoia a revisão humana:** IDs e checks verdes não provam, sozinhos, a correção de cada
+cenário ou a segurança do código. Hooks opcionais e CI ajudam a executar as verificações.
 
 *In English:* a Symfony/PHP kit that turns module docs into traceable specs, adds golden-file
 tests, an end-of-turn check for Claude Code and Codex, a coverage gate, phpat architecture rules
-and a reusable GitHub Actions workflow. Docs and messages are in Brazilian Portuguese.
+and a reusable GitHub Actions workflow. Portable Agent Skills, optional Claude Code/Codex Stop hooks, explicit verification on other
+coding agents, Windows/Linux support and an Agensi skill-pack builder. Docs and messages
+include Brazilian Portuguese. Traceability supports, and does not replace, human review.
 
 ## O que vem no kit
 
@@ -19,7 +22,7 @@ and a reusable GitHub Actions workflow. Docs and messages are in Brazilian Portu
 | **Regras de arquitetura** | phpat dentro do PHPStan: camadas, UseCase `final`, controller fino, mapa de dependência entre módulos. | `KitRigor\Arquitetura\RegrasSymfony` |
 | **CI reutilizável** | Check completo, cobertura, migrations num banco vazio (MySQL e MariaDB) e, opcional, mutação nas linhas mudadas, chamado com `uses:`. | `.github/workflows/php-check.yml` |
 | **Instruções para o agente** | Bloco do `AGENTS.md` (lido pelo Codex direto e pelo Claude via `CLAUDE.md` → `@AGENTS.md`). | `templates/AGENTS.bloco.md` |
-| **Skills** | `rigor-instalar`, `rigor-spec`, `rigor-mutacao`, no formato `SKILL.md` que os dois agentes leem. | `skills/` |
+| **Skills** | `rigor-instalar`, `rigor-spec`, `rigor-mutacao`, no padrão Agent Skills, conforme ferramentas e permissões do agente. | `skills/` |
 
 ## Como instalar num projeto
 
@@ -34,7 +37,7 @@ composer config repositories.kit-rigor vcs https://github.com/christopherpersaud
 Depois instale:
 
 ```bash
-composer require --dev christopherpersaud/kit-rigor-symfony
+composer require --dev "christopherpersaud/kit-rigor-symfony:^0.4"
 ```
 
 ### 2. O instalador
@@ -44,7 +47,7 @@ vendor/bin/rigor instalar --simular
 vendor/bin/rigor instalar
 ```
 
-O instalador nunca sobrescreve um arquivo do projeto:
+O instalador preserva arquivos não gerenciados e atualiza somente as peças do próprio kit:
 
 - **Modelos** (`templates/projeto/`): copiados só quando faltam. Um que já existe e difere do
   modelo aparece como `difere`, para você comparar.
@@ -74,11 +77,90 @@ Ela pergunta antes de tudo o que é decisão sua.
 Os hooks de projeto do Codex só rodam depois de você confiar neles com `/hooks`, e só se a pasta
 `.codex/` do projeto for confiável.
 
+## Agentes, perfis e Windows
+
+As opções abaixo estão disponíveis a partir da versão 0.4.0. Confira
+`php vendor/bin/rigor --help` ao atualizar uma instalação antiga.
+
+`SKILL.md` é portátil; hooks e ferramentas de execução dependem do harness. A biblioteca exige
+PHP 8.4+, Composer 2.2+, Git e compatibilidade com PHPUnit 12/13. Não atualize uma aplicação
+legada automaticamente para atender esses requisitos.
+
+```bash
+# Só specs/testes dourados e instruções portáteis; sem configurar Claude/Codex.
+php vendor/bin/rigor instalar --simular --perfil=essencial --agentes=nenhum
+php vendor/bin/rigor instalar --perfil=essencial --agentes=nenhum
+
+# Modelos completos e apenas as integrações escolhidas.
+php vendor/bin/rigor instalar --perfil=completo --agentes=cursor,gemini,copilot,opencode
+```
+
+| Integração | O que é instalado |
+|---|---|
+| Núcleo, sempre | `AGENTS.md` e `.agents/skills/` |
+| Claude Code | `CLAUDE.md`, `.claude/skills/` e hook Stop |
+| Codex | Hook Stop, sujeito à confiança do usuário |
+| Cursor / OpenCode | Skills compartilhadas e AGENTS.md; nenhum hook específico é instalado |
+| Gemini CLI | Skills compartilhadas e `GEMINI.md` remetendo ao AGENTS.md |
+| Copilot | Skills compartilhadas e `.github/copilot-instructions.md` remetendo ao AGENTS.md |
+| Agensi / MCP | Entrega as instruções; a biblioteca é instalada pelo Composer no projeto |
+
+Sem um hook configurado, confiável e funcional, execute `php vendor/bin/rigor-verificar`
+explicitamente antes de concluir mudanças em arquivos verificados. O CI completo permanece
+independente do agente. Uma conversa sem arquivos/terminal só pode oferecer orientação.
+A descoberta das skills foi conferida com a documentação dos agentes; não é uma certificação
+por execução de sessões completas em todos eles.
+
+O perfil `essencial` copia o teste de rastreabilidade e o catálogo de módulos, sem modelos
+PHPStan/phpat, cobertura, Infection ou CI. O `completo` preserva o conjunto anterior de modelos;
+a skill ajusta as verificações realmente adotadas. Sem novas opções, o instalador mantém o
+comportamento anterior: completo com Claude e Codex. Repita explicitamente o perfil e os
+agentes escolhidos nas atualizações; uma seleção não remove configurações antigas.
+
+Windows nativo usa `NUL` e caminhos normalizados. Os comandos dos hooks resolvem a raiz pelo
+Git dentro do PHP, sem expansão Bash. Use `php vendor/bin/...` no terminal e `@php` nos scripts
+Composer. Comandos definidos pelo projeto precisam funcionar no shell do ambiente; os modelos
+continuam sendo referências a adaptar. ParaTest e ferramentas opcionais dependem de suporte
+próprio: preserve PHPUnit sequencial quando necessário. No PowerShell, defina variáveis com
+`$env:NOME='valor'` e restaure o valor anterior ao terminar.
+
+## Distribuição para Agensi
+
+```bash
+composer package:agensi
+```
+
+Requer a extensão `zip` do PHP e gera `dist/kit-rigor-symfony-agensi.zip`: um pack com README,
+licença e as três skills com suas referências. Não inclui `vendor`, código executável da
+biblioteca, arquivos Git ou dados de projetos. A Agensi aceita packs com README na raiz e
+`skills/<nome>/SKILL.md`.
+
+As instruções precisam da versão Composer correspondente às opções descritas. Publique essa
+versão antes de disponibilizar o pack: gerar o ZIP não publica código nem cria uma tag.
+O texto sugerido e o checklist estão em [packaging/agensi/listing.md](packaging/agensi/listing.md).
+
+A entrega MCP não oferece uma pasta local permanente com a biblioteca. Não execute `bin/rigor`
+como script temporário isolado; instale o pacote Composer e use os arquivos dele. A skill de
+instalação explica onde encontrar os modelos na biblioteca instalada.
+
+## Desenvolver e testar
+
+```bash
+composer update --no-interaction
+composer check
+composer package:agensi
+```
+
+O CI do kit executa estilo, PHPStan nível 10 e PHPUnit no Ubuntu e no Windows, com PHP 8.4/8.5.
+O teste de symlink exige permissão do sistema e é pulado com motivo quando ela não existe;
+a proteção também é exercitada no Linux. O pacote gerado tem um teste de conteúdo e referências.
+O workflow reutilizável para aplicações continua usando Linux; ele é independente dos hooks.
+
 ## Atualizar
 
 ```bash
 composer update christopherpersaud/kit-rigor-symfony
-vendor/bin/rigor instalar
+php vendor/bin/rigor instalar --perfil=<perfil-escolhido> --agentes=<agentes-escolhidos>
 ```
 
 No CI, mova a versão do `uses:` para a mesma tag.

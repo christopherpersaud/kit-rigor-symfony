@@ -11,12 +11,13 @@ permissions:
 
 jobs:
     check:
-        name: PHP ${{ matrix.php }}
-        runs-on: ubuntu-24.04
+        name: ${{ matrix.os }} / PHP ${{ matrix.php }}
+        runs-on: ${{ matrix.os }}
         timeout-minutes: 10
         strategy:
             fail-fast: false
             matrix:
+                os: [ubuntu-24.04, windows-latest]
                 php: ['8.4', '8.5']
         steps:
             - uses: actions/checkout@v7
@@ -25,6 +26,7 @@ jobs:
               with:
                   php-version: ${{ matrix.php }}
                   coverage: none
+                  extensions: zip
                   tools: composer:v2
 
             - name: Dependências
@@ -37,3 +39,6 @@ jobs:
 
             - name: composer check (estilo, PHPStan, testes)
               run: composer check
+
+            - name: Pacote de skills para Agensi
+              run: composer package:agensi

@@ -63,6 +63,15 @@ final class TravaTest extends TestCase
         self::assertSame(["o piso de 'Entity' pode subir de 50 para 95."], $resultado->avisos);
     }
 
+    public function testCloverDoWindowsUsaOsMesmosPisosERelativos(): void
+    {
+        $xml = '<coverage><project><file name="C:\\projeto\\src\\Domain\\Cliente\\Servico.php"><metrics statements="10" coveredstatements="6"/></file></project></coverage>';
+        $resultado = new Trava(self::TRAVA, 'C:\\projeto')->conferir($xml);
+
+        self::assertFalse($resultado->passou());
+        self::assertContains('Domain/Cliente caiu para 60.0%, abaixo do piso de 70%.', $resultado->erros);
+    }
+
     public function testNoLimiteDoPisoPassaSemAviso(): void
     {
         $resultado = $this->conferir(['src/Entity/Z.php' => [100, 52]], ['total' => 0]);

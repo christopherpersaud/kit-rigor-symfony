@@ -58,7 +58,8 @@ try {
         }
         // Adapte ao diretório de assets e ao comando de build do projeto.
         if (array_any($arquivos, static fn (string $arquivo): bool => str_starts_with($arquivo, 'assets/') || in_array($arquivo, ['webpack.config.js', 'package.json', 'package-lock.json'], true))) {
-            executar(['npm', 'run', 'dev']);
+            // npm é um arquivo .cmd no Windows e precisa do interpretador de comandos.
+            executar('Windows' === PHP_OS_FAMILY ? ['cmd', '/d', '/c', 'npm', 'run', 'dev'] : ['npm', 'run', 'dev']);
         }
     }
     if ('leve' === $modo) {
