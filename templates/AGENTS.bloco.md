@@ -112,6 +112,13 @@ the default commands below.
 
 Two levels, so the end of a turn stays fast and the slow parts still run on every push:
 
+Optional formatting: place `@php vendor/bin/rigor-formatar` first in `check:rapido`.
+It runs the project's `formatar` script locally and `formatar:verificar` when `CI` is set
+(except empty, `0`, or `false`). The CI script must check without writing and fail on drift.
+Without `formatar`, nothing runs; with it, a missing CI script fails the CI check.
+Preserve the project's formatter and style. The full green fingerprint includes files after
+formatting, so the next unchanged turn skips the check.
+
 - **`composer check:rapido`, at the end of every turn.** Lints, PHPStan, php-cs-fixer
   `--dry-run`, JS lint and tests if the project has them, and the whole PHPUnit suite in
   parallel without coverage. The agent's Stop hook (Claude Code: `.claude/settings.json`;

@@ -8,6 +8,7 @@
         "phpstan analyse --memory-limit=1G -c phpstan.tests.neon"
     ],
     "check:rapido": [
+        "@php vendor/bin/rigor-formatar",
         "@php bin/console lint:container --env=test",
         "@php bin/console lint:yaml config/ --parse-tags --env=test",
         "@php bin/console lint:twig templates/ --env=test",

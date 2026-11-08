@@ -40,7 +40,8 @@
         "bin/rigor",
         "bin/rigor-verificar",
         "bin/rigor-cobertura",
-        "bin/rigor-hook-stop"
+        "bin/rigor-hook-stop",
+        "bin/rigor-formatar"
     ],
     "config": {
         "sort-packages": true,

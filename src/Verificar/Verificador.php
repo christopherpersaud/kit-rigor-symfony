@@ -67,7 +67,7 @@ final readonly class Verificador
         $verificacao = $this->rodar($this->config->comandoVerificar, false);
         @unlink($estado.'/verde');
         if ($verificacao->passou()) {
-            file_put_contents($estado.'/verde.json', json_encode($conteudo, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR));
+            file_put_contents($estado.'/verde.json', json_encode($this->conteudo(), \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR));
         } else {
             @unlink($estado.'/verde.json');
         }

@@ -147,6 +147,30 @@ final class InstaladorTest extends TestCase
         self::assertSame('{"scripts": {"test": "phpunit", "phpstan": "phpstan"}}', $this->ler('composer.json'));
     }
 
+    public function testDetectaFormatadorSemSobrescreverScriptsOuEstilo(): void
+    {
+        $composer = '{"scripts":{"formatar":"mago format","formatar:verificar":"mago format --check","check:rapido":["@test"]}}';
+        $this->gravar('composer.json', $composer);
+        $this->gravar('mago.toml', 'tab-width = 3');
+
+        $acao = $this->instalar()['composer.json'];
+
+        self::assertSame(Acao::DIFERE, $acao->tipo);
+        self::assertStringContainsString('rigor-formatar', (string) $acao);
+        self::assertSame($composer, $this->ler('composer.json'));
+        self::assertSame('tab-width = 3', $this->ler('mago.toml'));
+    }
+
+    public function testFormatadorSemConferenciaPedeScriptDoCi(): void
+    {
+        $this->gravar('composer.json', '{"scripts":{"formatar":"ferramenta formatar"}}');
+
+        $acao = $this->instalar()['composer.json'];
+
+        self::assertSame(Acao::FALTA, $acao->tipo);
+        self::assertStringContainsString('formatar:verificar', (string) $acao);
+    }
+
     public function testSimularNaoGravaNada(): void
     {
         $acoes = new Instalador($this->pasta, self::KIT, simular: true)->instalar();

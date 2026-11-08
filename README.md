@@ -176,6 +176,35 @@ As skills também podem ser instaladas de forma global, como plugin:
 Use **um** dos caminhos, o do projeto (cópia pelo instalador) ou o plugin. Com os dois, a mesma
 skill aparece duas vezes.
 
+## Formatação automática opcional
+
+A partir de 0.5.0, acrescente `@php vendor/bin/rigor-formatar` no início de
+`check:rapido` para usar os scripts de formatação que o projeto já tem. O kit não instala
+Mago nem impõe estilo ou caminhos. Por exemplo, num projeto que escolheu Mago:
+
+```json
+"scripts": {
+    "formatar": "mago format",
+    "formatar:verificar": "mago format --check",
+    "check:rapido": [
+        "@php vendor/bin/rigor-formatar",
+        "@test"
+    ]
+}
+```
+
+Localmente, o comando executa `composer formatar`. Com `CI` definido (exceto vazio, `0`
+ou `false`), executa apenas `composer formatar:verificar`, que deve conferir sem escrever.
+Erro de qualquer script reprova o check. Se existe `formatar` mas falta `formatar:verificar`,
+o CI falha com orientação, sem rodar o formatador. Sem `formatar`, o comando não faz nada:
+a adoção é opcional e mantém projetos sem formatador funcionando.
+
+O instalador detecta esses scripts e sugere o ajuste, preservando o `composer.json` e a
+configuração de estilo existentes. Não ponha `@formatar` diretamente no check compartilhado
+com o CI. Com adoção por escopo, o comando pode ser o primeiro passo de `check:rapido` e
+`check:ci`; mantenha o `check:leve` restrito aos arquivos de layout. O verificador registra
+o conteúdo depois do check completo, incluindo a formatação automática, como último verde.
+
 ## Configuração (`extra.rigor` no composer.json)
 
 Tudo é opcional. Os padrões são os de um projeto Symfony:

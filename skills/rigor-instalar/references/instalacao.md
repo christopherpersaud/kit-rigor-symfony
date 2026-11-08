@@ -72,6 +72,13 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
   - Os comandos do modelo não são copiados literalmente: use `@php vendor/bin/...` nos scripts Composer, preserve o bundler e o runner do projeto e substitua expressões de shell específicas do sistema. Não imponha ParaTest no Windows; use o PHPUnit sequencial se o runner paralelo não suportar o ambiente.
   - Monte o `check:rapido` só com o que o projeto tem: `lint:twig` só com Twig,
     `doctrine:schema:validate` só com Doctrine, ESLint, testes JS e build só com Node.
+  - Formatação opcional (kit 0.5.0+): se o projeto já define `formatar`, preserve a ferramenta,
+    os caminhos e o estilo; configure `formatar:verificar` para conferir sem escrever e ponha
+    `@php vendor/bin/rigor-formatar` primeiro em `check:rapido`. Localmente ele formata; com
+    `CI` definido (exceto vazio, `0` ou `false`), só verifica. Sem `formatar`, não faz nada.
+    Não instale Mago por padrão nem acrescente `@formatar` diretamente ao check usado no CI.
+    O instalador só relata o ajuste; não sobrescreve scripts. Na adoção por escopo, inclua a
+    chamada também em `check:ci`, sem ampliar o `check:leve` para formatar PHP.
   - No `mutacao:diff`, troque `master` pela branch principal do projeto.
   - Um script que já existe com outro conteúdo **não é sobrescrito**: mostre a diferença ao
     usuário.

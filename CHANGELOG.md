@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 (2026-11-08)
+
+- Formatação opcional com `rigor-formatar`: usa `formatar` localmente e
+  `formatar:verificar` no CI; sem formatador, não faz nada. Não impõe ferramenta nem estilo.
+- Instalador detecta os scripts e relata o ajuste sem sobrescrever a configuração existente.
+- Último verde completo registra o conteúdo depois da formatação automática, evitando
+  repetir o check só porque o próprio formatador mudou arquivos.
+- Modelos, instruções e skill de instalação documentam adoção opcional e CI sem escrita.
+
 ## 0.4.0 (2026-11-06)
 
 - Suporte ao Windows nativo: dispositivo NUL, caminhos normalizados no instalador, specs,

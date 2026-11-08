@@ -33,6 +33,16 @@ final class VerificadorTest extends TestCase
         self::assertSame("rodou\n", $this->ler('var/contador.log'));
     }
 
+    public function testVerdeRegistraConteudoDepoisDaFormatacaoAutomatica(): void
+    {
+        $verificador = $this->verificador($this->comandoPhp('file_put_contents("src/A.php", "<?php // formatado"); file_put_contents("var/contador.log", "rodou\\n", FILE_APPEND);'));
+
+        self::assertSame(Verificacao::VERDE, $verificador->verificar()->situacao);
+        self::assertSame('<?php // formatado', $this->ler('src/A.php'));
+        self::assertSame(Verificacao::SEM_MUDANCA, $verificador->verificar()->situacao);
+        self::assertSame("rodou\n", $this->ler('var/contador.log'));
+    }
+
     public function testMudancaNumArquivoVerificadoRodaDeNovo(): void
     {
         $verificador = $this->verificador($this->comandoPhp('exit(0);'));

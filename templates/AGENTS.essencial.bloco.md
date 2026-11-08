@@ -20,3 +20,7 @@ Preserve the project's full CI check independently of the agent and its hooks.
 The portable skills live in `.agents/skills/`. Optional Claude, Codex, Gemini and Copilot
 integration files point to these project instructions. Selecting another agent on a later
 installation does not remove existing integration files; inspect them before disabling any.
+
+Optional formatting uses `@php vendor/bin/rigor-formatar` first in `check:rapido`: it runs
+`formatar` locally and the non-writing `formatar:verificar` in CI. Without a `formatar`
+script it does nothing. Preserve the project's formatter and existing style configuration.

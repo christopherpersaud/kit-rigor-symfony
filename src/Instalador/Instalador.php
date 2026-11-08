@@ -75,6 +75,7 @@ final class Instalador
             $this->hookDoCodex();
         }
         $this->scriptsDoComposer();
+        $this->formatacaoDoComposer();
 
         return $this->acoes;
     }
@@ -291,6 +292,23 @@ final class Instalador
             implode(', ', $faltam),
             $this->doKit('templates/referencia/composer-scripts.json'),
         ));
+    }
+
+    private function formatacaoDoComposer(): void
+    {
+        $projeto = json_decode((string) @file_get_contents($this->projeto.'/composer.json'), true);
+        $scripts = \is_array($projeto) && \is_array($projeto['scripts'] ?? null) ? $projeto['scripts'] : [];
+        if (!isset($scripts['formatar'])) {
+            return;
+        }
+        if (!isset($scripts['formatar:verificar'])) {
+            $this->acoes[] = new Acao(Acao::FALTA, 'composer.json', 'formatação detectada: defina formatar:verificar sem escrita para o CI; preserve a ferramenta e o estilo do projeto');
+
+            return;
+        }
+        if (!str_contains(json_encode($scripts['check:rapido'] ?? [], \JSON_THROW_ON_ERROR), 'rigor-formatar')) {
+            $this->acoes[] = new Acao(Acao::DIFERE, 'composer.json', 'formatação detectada: para adotar, acrescente @php vendor/bin/rigor-formatar no início de check:rapido (formata localmente, só verifica no CI)');
+        }
     }
 
     private function gravar(string $caminho, string $conteudo, bool $executavel = false): void

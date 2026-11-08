@@ -5,7 +5,7 @@ de desenvolvimento para projetos Symfony, mais os modelos, as skills e o workflo
 ele instala. Ele é público: nada de segredo, dado pessoal ou detalhe de um projeto específico.
 
 - `src/` é o código que os projetos usam (namespace `KitRigor\`); `bin/` são os comandos
-  (`rigor`, `rigor-verificar`, `rigor-cobertura`, `rigor-hook-stop`); `rigor-empacotar` gera o pack Agensi.
+  (`rigor`, `rigor-verificar`, `rigor-cobertura`, `rigor-hook-stop`, `rigor-formatar`); `rigor-empacotar` gera o pack Agensi.
 - `templates/projeto/` é copiado para o projeto pelo `vendor/bin/rigor instalar` (só quando o
   arquivo falta); `templates/referencia/` é material que a skill `rigor-instalar` usa para
   ajustar; `templates/AGENTS.bloco.md` é o bloco que vai no AGENTS.md dos projetos.

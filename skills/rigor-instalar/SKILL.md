@@ -17,6 +17,9 @@ skill's directory. When delivered through Agensi/MCP, the skill is guidance; Com
 the executable library into the target repository. Never run its PHP entrypoints as isolated
 MCP scripts or copy vendor dependencies into the skill distribution.
 
+Optional formatting (0.5.0+) reuses project scripts: `rigor-formatar` applies `formatar`
+locally and runs the non-writing `formatar:verificar` in CI. Do not impose a formatter.
+
 Preserve already authorized choices and existing project conventions. Set up only the selected
 integrations. Agent Skills discovery does not imply support for a Stop hook: when the current
 harness has no trusted, working hook, run `php vendor/bin/rigor-verificar` explicitly before
