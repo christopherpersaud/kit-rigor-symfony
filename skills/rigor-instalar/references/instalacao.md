@@ -77,6 +77,8 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
     `@php vendor/bin/rigor-formatar` primeiro em `check:rapido`. Localmente ele formata; com
     `CI` definido (exceto vazio, `0` ou `false`), só verifica. Sem `formatar`, não faz nada.
     Não instale Mago por padrão nem acrescente `@formatar` diretamente ao check usado no CI.
+    Se o usuário escolher o Mago e o projeto não tiver `mago.toml`, ofereça
+    `templates/referencia/mago.toml` como ponto de partida, ajustando `php-version` e `paths`.
     O instalador só relata o ajuste; não sobrescreve scripts. Na adoção por escopo, inclua a
     chamada também em `check:ci`, sem ampliar o `check:leve` para formatar PHP.
   - No `mutacao:diff`, troque `master` pela branch principal do projeto.

@@ -10,6 +10,7 @@ tem instalado. A skill `rigor-instalar` usa estes modelos para ajustar o projeto
 | `tests/phpstan-object-manager.php` | Projeto com Doctrine: a extensão do PHPStan valida DQL e tipos das colunas (descomente `doctrine:` no `phpstan.base.neon`). |
 | `tests/phpstan-console-loader.php` | A extensão do PHPStan conhece os comandos de console (descomente `consoleApplicationLoader`). |
 | `escopo/LEIA-ME.md` | Opção de adoção gradual: manifesto por tarefa, layout leve, PHP/testes direcionados e CI completo independente da seleção. Não é aplicado automaticamente. |
+| `mago.toml` | Ponto de partida opcional para quem escolheu o Mago como formatador: 3 espaços, chaves na mesma linha e imports a cargo do PHP CS Fixer. Copie para a raiz do projeto e ajuste `php-version`, `paths` e o estilo. Não é aplicado pelo instalador. |
 
 Além disso, no `phpunit.dist.xml` do projeto:
 

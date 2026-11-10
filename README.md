@@ -199,6 +199,11 @@ Erro de qualquer script reprova o check. Se existe `formatar` mas falta `formata
 o CI falha com orientação, sem rodar o formatador. Sem `formatar`, o comando não faz nada:
 a adoção é opcional e mantém projetos sem formatador funcionando.
 
+Para começar de uma configuração pronta, copie
+`vendor/christopherpersaud/kit-rigor-symfony/templates/referencia/mago.toml` para a raiz do
+projeto e ajuste `php-version`, `paths` e o estilo. É só uma sugestão: o instalador não copia
+esse arquivo.
+
 O instalador detecta esses scripts e sugere o ajuste, preservando o `composer.json` e a
 configuração de estilo existentes. Não ponha `@formatar` diretamente no check compartilhado
 com o CI. Com adoção por escopo, o comando pode ser o primeiro passo de `check:rapido` e

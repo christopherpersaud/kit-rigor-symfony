@@ -1,5 +1,10 @@
 # Changelog
 
+## Não publicado
+
+- Modelo opcional `templates/referencia/mago.toml` como ponto de partida para quem usa o Mago;
+  o instalador não copia o arquivo.
+
 ## 0.5.0 (2026-11-08)
 
 - Formatação opcional com `rigor-formatar`: usa `formatar` localmente e

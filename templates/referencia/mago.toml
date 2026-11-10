@@ -1,0 +1,20 @@
+php-version = "8.5"
+
+[source]
+paths = ["src"]
+
+[formatter]
+print-width = 100
+tab-width = 3
+use-tabs = false
+end-of-line = "lf"
+single-quote = true
+function-brace-style = "same-line"
+method-brace-style = "same-line"
+classlike-brace-style = "same-line"
+# Os imports continuam sob responsabilidade do PHP CS Fixer.
+sort-uses = "preserve"
+expand-use-groups = false
+array-table-style-alignment = false
+preserve-breaking-member-access-chain = true
+align-parameters = true
