@@ -147,8 +147,9 @@ formatting, so the next unchanged turn skips the check.
 
 The reusable CI workflow resolves the Composer cache directory dynamically. Optional
 `cache-phpstan` lists the PHPStan `tmpDir` folders, one per line. With Encore, build production
-before the quick check and use `preparo-cobertura` for the coverage job's development build;
-`preparo` remains the shared fallback for existing consumers.
+before the quick check and use `preparo-cobertura` and `preparo-mutacao` for the development
+build of the coverage and mutation jobs; `preparo` remains the shared fallback for existing
+consumers.
 
 Run `composer check:rapido` yourself before saying a task is done; after a push, check that the
 CI went green.

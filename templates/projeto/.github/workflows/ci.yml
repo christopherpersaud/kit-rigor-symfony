@@ -28,9 +28,10 @@ jobs:
             # relatorios: var/check/ci/
             # retencao-relatorios: 14
 
-            # Com Encore: composer check gera produção antes do check rápido;
-            # só a cobertura precisa do build de dev.
+            # Com Encore: composer check gera produção antes do check rápido; a cobertura e a
+            # mutação rodam a suíte sem esse build e precisam do de dev.
             # preparo-cobertura: npm run dev
+            # preparo-mutacao: npm run dev
             # cache-phpstan: |
             #     var/cache/phpstan
             #     var/cache/phpstan-tests

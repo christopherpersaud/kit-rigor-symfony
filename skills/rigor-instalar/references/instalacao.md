@@ -14,6 +14,17 @@ Respeite as escolhas já autorizadas e as configurações do projeto. As marcaç
 
 Confirme PHP 8.4+, Composer 2.2+, Git e compatibilidade com PHPUnit 12 ou 13. Confira também as restrições de Symfony/String no Composer. Se o projeto não for compatível, explique o impedimento sem atualizar PHP, Symfony ou PHPUnit por conta própria. Faça uma simulação do Composer antes de instalar.
 
+- **PHPUnit 9 a 11:** a migração é uma decisão do usuário e vem antes do kit, com a suíte verde.
+  Os pontos que costumam aparecer: annotations (`@dataProvider`) viram atributos; o
+  `<listeners>` do Symfony vira `<extensions><bootstrap class="Symfony\Bridge\PhpUnit\SymfonyExtension"/>`;
+  `SYMFONY_PHPUNIT_VERSION`, `SYMFONY_DEPRECATIONS_HELPER` e `convertDeprecationsToExceptions` saem;
+  mock sem expectativa vira `createStub()`. O PHPUnit 10+ não relata deprecations silenciadas com
+  `@`, que é como o Symfony e o Doctrine as emitem: use `ignoreSuppressionOfDeprecations="true"`
+  no `<source>` e chame `Doctrine\Deprecations\Deprecation::enableWithTriggerError()` no
+  `tests/bootstrap.php`, senão o relatório fica vazio sem estar limpo.
+- **Driver de cobertura:** sem pcov ou xdebug, a cobertura e a mutação não rodam na máquina
+  (no CI, o workflow instala o pcov). Avise o usuário em vez de presumir que estão verdes.
+
 Escolha o perfil: **essencial** para specs e testes dourados, ou **completo** para os modelos de análise, arquitetura, cobertura e CI, ajustados ao projeto. Novas adoções começam pelo essencial quando o pedido não definir outro escopo. Uma atualização preserva o perfil e os agentes anteriormente escolhidos.
 
 - **Versões e componentes:** leia `composer.json` e `symfony.lock` para saber a versão do PHP e
@@ -29,8 +40,8 @@ Enquanto o pacote não está no Packagist, o projeto declara o repositório ante
 `composer config repositories.kit-rigor vcs https://github.com/christopherpersaud/kit-rigor-symfony`.
 
 ```bash
-composer require --dev "christopherpersaud/kit-rigor-symfony:^0.4" --dry-run
-composer require --dev "christopherpersaud/kit-rigor-symfony:^0.4"
+composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5" --dry-run
+composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5"
 ```
 
 No perfil essencial, não instale ferramentas adicionais além das dependências do pacote. No completo, escolha somente as ferramentas das verificações adotadas, preservando as versões compatíveis e o executor do projeto. A lista abaixo é uma referência, não uma ordem para instalar tudo:
@@ -122,7 +133,9 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
       usava outro marcador, passe a troca equivalente ou regenere os dourados e mostre o diff.
 - **`phpstan.base.neon`:**
   - ajuste `phpVersion` à versão do `composer.json`;
-  - ajuste `containerXmlPath` ao nome do kernel;
+  - ajuste `containerXmlPath` ao nome do kernel. O XML só existe depois de um container de dev
+    compilado: o script `phpstan` começa com `cache:warmup --env=dev`, porque o CI instala as
+    dependências no `APP_ENV` do `.env` versionado, que pode ser `prod`;
   - com Doctrine, copie `templates/referencia/tests/phpstan-object-manager.php` e descomente
     `doctrine:`. Fixe nele a `DATABASE_URL` da plataforma de produção: o tipo que o
     phpstan-doctrine deduz para as consultas depende dela, e o `.env` versionado (que o CI usa)
@@ -130,6 +143,15 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
 - **PHPStan nível 10:** um projeto que nunca rodou nesse nível costuma ter muitos erros.
   **(usuário)** Escolha entre corrigir já ou começar num nível menor e subir. Baseline e
   comentários de ignorar não entram.
+  - Meça antes de propor o nível: rode a análise em cada nível, do 10 para baixo, e conte os erros.
+  - As regras do phpstan-doctrine e do phpat valem em qualquer nível: num projeto legado, o
+    nível 0 pode reprovar. Separe o que é bug real (DQL com campo inexistente, classe removida,
+    método sem `return`), que se corrige com teste, do que é convenção, como propriedade nullable
+    em coluna NOT NULL (`allowNullablePropertyForRequiredField`, comentado no
+    `phpstan.base.neon`). **(usuário)** Corrigir os bugs é decisão do usuário.
+  - O phpstan-doctrine analisa a consulta inteira só quando o `join` está no mesmo método que a
+    monta. Um alias criado num método auxiliar aparece como `'x' is not defined`: leve o `join`
+    para quem monta a consulta, sem mudar o SQL gerado.
 - **`tests/Arquitetura/RegrasDeArquitetura.php`:** leia `src/Domain/*` e as dependências reais
   entre os módulos (os `use`). Proponha o mapa `modulos()` e as exceções de
   `controllersComRepository()`. **(usuário)** O mapa e as exceções são decisão do usuário.
@@ -156,8 +178,10 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
     `retencao-relatorios`; eles são opcionais e não ligam cobertura;
 
   - com Encore, faça `composer check` gerar o build de produção antes do check rápido;
-    deixe `preparo` vazio e use `preparo-cobertura: npm run dev`, evitando build de dev extra
-    no check. `preparo` continua disponível para consumidores que precisam do comando comum;
+    deixe `preparo` vazio e use `preparo-cobertura: npm run dev` e, com a mutação ligada,
+    `preparo-mutacao: npm run dev`, evitando build de dev extra no check. Sem o build, os testes
+    que renderizam as tags do Encore falham e o Infection para antes de mutar. `preparo`
+    continua disponível para consumidores que precisam do comando comum;
   - configure `cache-phpstan` com as pastas `tmpDir` das análises, uma por linha (ex.:
     `var/cache/phpstan` e `var/cache/phpstan-tests`), nunca o cache inteiro do Symfony;
   - **(usuário)** pergunte se liga a mutação no CI (`mutacao: true`, limite em `mutacao-msi`):
@@ -174,6 +198,12 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
   `git config core.hooksPath .githooks`, porque muda a configuração local do git.
 - **Codex:** os hooks do projeto só rodam depois de o usuário confiar neles com `/hooks` no
   Codex. Avise o usuário.
+- **Hook com check vermelho:** o hook Stop prende o agente até o check passar. Deixe o
+  `check:rapido` verde antes de encerrar a instalação, senão a próxima sessão começa corrigindo
+  dívida antiga. O Claude Code lê o `.claude/settings.json` ao abrir a sessão.
+- **Push do CI:** enviar arquivos de `.github/workflows/` com um token OAuth (como o do `gh`)
+  exige o escopo `workflow` (`gh auth refresh -h github.com -s workflow`). Commit e push só com
+  pedido do usuário.
 
 ## 4. Specs
 

@@ -4,6 +4,7 @@
         "@php -d pcov.enabled=0 vendor/bin/paratest"
     ],
     "phpstan": [
+        "@php bin/console cache:warmup --env=dev --quiet",
         "phpstan analyse --memory-limit=1G",
         "phpstan analyse --memory-limit=1G -c phpstan.tests.neon"
     ],

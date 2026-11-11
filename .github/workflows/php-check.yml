@@ -30,6 +30,10 @@ on:
                 description: Preparo exclusivo da cobertura; vazio usa o preparo comum.
                 type: string
                 default: ''
+            preparo-mutacao:
+                description: Preparo exclusivo da mutação; vazio usa o preparo comum.
+                type: string
+                default: ''
             cache-phpstan:
                 description: Pastas do tmpDir do PHPStan para cache no check, uma por linha; vazio desliga.
                 type: string
@@ -249,8 +253,8 @@ jobs:
                   if [ -f package-lock.json ]; then npm ci; fi
 
             - name: Preparo
-              if: inputs.preparo != ''
-              run: ${{ inputs.preparo }}
+              if: inputs.preparo-mutacao != '' || inputs.preparo != ''
+              run: ${{ inputs.preparo-mutacao || inputs.preparo }}
 
             # Pull request: a branch de destino. Push: o commit anterior ao push. Branch nova ou
             # push forçado sem o commit anterior no histórico: não há base, e o job não muta nada.

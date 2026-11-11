@@ -20,6 +20,19 @@ Além disso, no `phpunit.dist.xml` do projeto:
         <!-- Mesmo fuso do CI: um teste que depende do fuso da máquina falha aqui também. -->
         <ini name="date.timezone" value="UTC" />
     </php>
+    <!-- O Symfony e o Doctrine emitem deprecations com @trigger_error, que o PHPUnit não relata
+         sem ignoreSuppressionOfDeprecations. -->
+    <source ignoreSuppressionOfDeprecations="true">
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+```
+
+Com Doctrine, o `doctrine/deprecations` só emite o aviso se for ligado; no `tests/bootstrap.php`:
+
+```php
+Doctrine\Deprecations\Deprecation::enableWithTriggerError();
 ```
 
 E uma `testsuite` por módulo, para `composer test -- --testsuite <módulo>` (o paratest aceita um

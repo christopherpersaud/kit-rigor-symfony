@@ -24,6 +24,60 @@ include Brazilian Portuguese. Traceability supports, and does not replace, human
 | **Instruções para o agente** | Bloco do `AGENTS.md` (lido pelo Codex direto e pelo Claude via `CLAUDE.md` → `@AGENTS.md`). | `templates/AGENTS.bloco.md` |
 | **Skills** | `rigor-instalar`, `rigor-spec`, `rigor-mutacao`, no padrão Agent Skills, conforme ferramentas e permissões do agente. | `skills/` |
 
+## Primeiros passos
+
+O caminho de uma primeira instalação, na ordem. Os detalhes de cada passo estão em
+[Como instalar num projeto](#como-instalar-num-projeto) e no guia da skill
+[`rigor-instalar`](skills/rigor-instalar/references/instalacao.md).
+
+1. **Confira os requisitos** numa branch com o `git status` limpo:
+
+   ```bash
+   php -v                              # 8.4 ou mais
+   composer --version                  # 2.2 ou mais
+   composer show phpunit/phpunit       # 12 ou 13
+   php -m | grep -E 'pcov|xdebug'      # driver de cobertura
+   ```
+
+2. **Migre o PHPUnit antes, se for preciso.** Num projeto em PHPUnit 9 a 11, faça a migração
+   como tarefa própria e deixe a suíte verde antes de instalar o kit. Os pontos mais comuns:
+   - annotations viram atributos (`#[DataProvider]`);
+   - o listener do Symfony vira a extensão `Symfony\Bridge\PhpUnit\SymfonyExtension`;
+   - mock sem expectativa vira `createStub()`;
+   - as deprecations precisam de `ignoreSuppressionOfDeprecations` e, com Doctrine, de
+     `Deprecation::enableWithTriggerError()` (veja
+     [`templates/referencia/LEIA-ME.md`](templates/referencia/LEIA-ME.md)).
+
+3. **Instale e simule** antes de gravar:
+
+   ```bash
+   composer config repositories.kit-rigor vcs https://github.com/christopherpersaud/kit-rigor-symfony
+   composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5"
+   php vendor/bin/rigor instalar --simular --perfil=essencial --agentes=nenhum
+   ```
+
+   Rode de novo sem `--simular`, com o perfil e os agentes escolhidos.
+
+4. **Peça ao agente: "instale o kit de rigor".** A skill mede o projeto e pergunta o que é
+   decisão sua. No perfil completo, conte com estes achados num projeto legado:
+   - **PHPStan:** o phpstan-doctrine e o phpat valem em qualquer nível, então até o nível 0
+     pode reprovar. Separe bug real (DQL com campo inexistente, classe removida) de convenção
+     (propriedade nullable em coluna NOT NULL) e comece no maior nível que passa limpo.
+   - **Cobertura:** os pisos vêm da medição. Os arquivos a 0% ganham teste ou entram em
+     `sem_teste`, com o motivo.
+   - **Arquitetura:** o mapa de módulos sai das dependências reais. Os controllers que já leem
+     repository entram como exceção até serem refeitos.
+
+5. **Deixe o check verde.** Rode `composer check:rapido` e `php vendor/bin/rigor-verificar --tudo`.
+   Com o hook Stop ligado, um check vermelho prende o agente no fim de cada turno.
+
+6. **Suba o CI.** O token precisa do escopo `workflow` para enviar `.github/workflows/`
+   (`gh auth refresh -h github.com -s workflow`). Com Encore, configure `preparo-cobertura` e
+   `preparo-mutacao` (veja [Cache e builds no CI](#cache-e-builds-no-ci)). Ligue a mutação
+   depois do primeiro CI verde.
+
+7. **Codex:** confie nos hooks do projeto com `/hooks`.
+
 ## Como instalar num projeto
 
 ### 1. O pacote
@@ -37,7 +91,7 @@ composer config repositories.kit-rigor vcs https://github.com/christopherpersaud
 Depois instale:
 
 ```bash
-composer require --dev "christopherpersaud/kit-rigor-symfony:^0.4"
+composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5"
 ```
 
 ### 2. O instalador
@@ -301,21 +355,23 @@ depois do preparo. Cada execução salva uma chave nova, incluindo sistema, vers
 e configuração; a próxima restaura a mais recente compatível. O PHPStan invalida os resultados
 dos arquivos alterados. Não inclua o cache inteiro do Symfony nem bancos ou sessões de teste.
 
-`preparo` continua comum aos jobs. `preparo-cobertura`, quando preenchido, substitui o comando
-somente na cobertura. Para Encore, faça `composer check` executar `npm run build` **antes**
-do check rápido, deixe `preparo` vazio e configure:
+`preparo` continua comum aos jobs. `preparo-cobertura` e `preparo-mutacao`, quando
+preenchidos, substituem o comando somente no job deles. Para Encore, faça `composer check`
+executar `npm run build` **antes** do check rápido, deixe `preparo` vazio e configure:
 
 ```yaml
 preparo-cobertura: npm run dev
+preparo-mutacao: npm run dev   # só com mutacao: true
 cache-phpstan: |
     var/cache/phpstan
     var/cache/phpstan-tests
 ```
 
-Assim o check testa com assets de produção e a cobertura usa seu build de desenvolvimento,
-sem um build de desenvolvimento extra no check. Os jobs permanecem independentes e paralelos.
-Se a mutação estiver ligada e precisar de assets, configure seu preparo no comando de mutação
-ou mantenha o preparo comum. Os projetos existentes continuam com o mesmo comportamento.
+Assim o check testa com assets de produção e a cobertura e a mutação usam o build de
+desenvolvimento, sem um build de desenvolvimento extra no check. Os jobs permanecem
+independentes e paralelos. Sem o build, os testes que renderizam as tags do Encore falham e o
+Infection para antes de mutar ("Project tests must be in a passing state"). Os projetos
+existentes continuam com o mesmo comportamento.
 
 ## Formato de uma regra
 

@@ -1,7 +1,21 @@
 # Changelog
 
-## Não publicado
+## 0.5.1 (2026-11-11)
 
+- Workflow reutilizável: input `preparo-mutacao`, o preparo exclusivo do job de mutação (vazio
+  usa o `preparo` comum, como antes). Com Encore, o job de mutação falhava antes de mutar por
+  falta do build de dev.
+- Modelo de scripts: `phpstan` compila o container de dev antes da análise. Com `APP_ENV=prod`
+  no `.env` versionado, o `composer install` do CI só gera o cache de produção e o PHPStan
+  reprovava por falta do `containerXmlPath`.
+- README: seção "Primeiros passos" com a ordem de uma primeira instalação; versão `^0.5` nos
+  comandos de instalação.
+- Guia da skill `rigor-instalar`: migração do PHPUnit, deprecations silenciadas, medição do
+  PHPStan por nível, regras do phpstan-doctrine e do phpat no nível 0, alias de DQL em método
+  auxiliar, hook com check vermelho e escopo `workflow` do token.
+- Modelos: `allowNullablePropertyForRequiredField` comentado no `phpstan.base.neon` e
+  `preparo-mutacao` comentado no `ci.yml`; referência do PHPUnit com
+  `ignoreSuppressionOfDeprecations` e `Deprecation::enableWithTriggerError()`.
 - Modelo opcional `templates/referencia/mago.toml` como ponto de partida para quem usa o Mago;
   o instalador não copia o arquivo.
 
