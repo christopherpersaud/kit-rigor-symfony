@@ -1,6 +1,6 @@
 # O check completo, numa máquina limpa, em cada push na master e em cada pull request. Os jobs
 # vêm do workflow reutilizável do kit; aqui ficam só as escolhas do projeto. A verificação
-# local roda quando a mudança está pronta para revisão (vendor/bin/rigor-verificar).
+# local roda no pre-commit (vendor/bin/rigor-verificar --pre-commit).
 name: CI
 
 on:

@@ -72,6 +72,7 @@ Localize a biblioteca com `composer show christopherpersaud/kit-rigor-symfony --
 Leia a saída:
 
 - **`criado` e `atualizado`:** o instalador gravou o arquivo.
+- **`removido`:** o instalador retirou um hook antigo do kit.
 - **`igual`:** o arquivo já estava como o modelo.
 - **`difere` e `falta`:** pedem o seu ajuste, nos passos seguintes.
 
@@ -193,9 +194,11 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
   - Preencha cada piso com `floor(medido) - 2` e o `total` do mesmo jeito.
   - Para os arquivos a 0%, **(usuário)** pergunte se ganham teste agora ou se entram em
     `sem_teste`, sempre com o motivo.
-- **Pre-push do Git (opcional):** ativa o check de revisão em todo push local. Confira se já
-  está ativo antes de propor sua adoção. Quem faz push durante o desenvolvimento pode usar
-  o check local só na entrega e o CI obrigatório no PR.
+- **Pre-commit do Git:** o instalador copia `.githooks/pre-commit` nos dois perfis e retira
+  o `pre-push` original do kit. Confira o `core.hooksPath` efetivo. Para um clone que adotou
+  os hooks do kit, ative com `git config --local core.hooksPath .githooks`. Se o projeto já
+  usa outros hooks, integre `php vendor/bin/rigor-verificar --pre-commit` ao hook existente.
+  Preserve hooks personalizados e relate qualquer `pre-push` que ainda rode o mesmo check.
 - **Stop autônomo (opcional):** se solicitado, instale com `--stop` para os agentes escolhidos.
   No Codex, oriente o usuário a confiar no hook do projeto com `/hooks`. No Claude Code,
   confira a configuração na sessão que usará o hook.
@@ -217,8 +220,9 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
 php vendor/bin/rigor-verificar --tudo
 ```
 
-Depois da instalação, use testes focados durante a tarefa e execute
-`php vendor/bin/rigor-verificar` quando a mudança estiver pronta para revisão. Mostre o
+Depois da instalação, use testes focados durante a tarefa. Quando o usuário pedir um commit,
+deixe o pre-commit executar o check rápido. Se o hook estiver inativo, execute
+`php vendor/bin/rigor-verificar --pre-commit` depois de preparar o índice. Mostre o
 `git status` e o `git diff`. Commit, branch e push só quando o usuário pedir.
 
 Em projetos que adotaram escopo, confira o comando de revisão com o manifesto e o CI

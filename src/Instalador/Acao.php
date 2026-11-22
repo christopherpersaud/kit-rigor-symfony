@@ -9,6 +9,7 @@ final readonly class Acao
 {
     public const string CRIADO = 'criado';
     public const string ATUALIZADO = 'atualizado';
+    public const string REMOVIDO = 'removido';
     public const string IGUAL = 'igual';
     public const string DIFERE = 'difere';
     public const string FALTA = 'falta';

@@ -22,7 +22,17 @@ trait PastaTemporaria
             if (!$item instanceof \SplFileInfo) {
                 continue;
             }
-            $item->isDir() && !$item->isLink() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+            $caminho = $item->getPathname();
+            if ($item->isDir() && !$item->isLink()) {
+                rmdir($caminho);
+
+                continue;
+            }
+            if ('Windows' === \PHP_OS_FAMILY && !$item->isLink()) {
+                // Objetos soltos do Git são somente leitura e o Windows impede unlink.
+                chmod($caminho, 0o666);
+            }
+            unlink($caminho);
         }
         rmdir($this->pasta);
     }

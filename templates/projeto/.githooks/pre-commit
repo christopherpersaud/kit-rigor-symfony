@@ -1,0 +1,3 @@
+#!/bin/sh
+# Ative neste clone com: git config --local core.hooksPath .githooks
+exec php vendor/bin/rigor-verificar --pre-commit

@@ -1,6 +1,6 @@
 # Adoção por escopo, com layout leve e CI completo
 
-Opção para limitar a validação local de revisão ao escopo da tarefa. A instalação é manual
+Opção para limitar a validação local antes do commit ao escopo da tarefa. A instalação é manual
 e preserva a configuração existente. No PR, o CI continua rodando a validação completa.
 
 1. Copie `bin/verificar-escopo.php` para `bin/` do projeto e adapte os lints e o build ao que
@@ -36,8 +36,7 @@ uma chamada manual sobre código. Não marque todo `*.json` como layout para con
 | CI | `composer check:ci`: lints, build, PHPStan e testes completos |
 
 Uma worktree sem verde anterior começa com o direcionado. O verde leve vale para o Stop
-autônomo. Na revisão, `php vendor/bin/rigor-verificar` roda o direcionado, assim como o
-`pre-push` opcional. O modelo mantém `composer test -- tests/XTest.php`
+autônomo. No pre-commit, `php vendor/bin/rigor-verificar --pre-commit` roda o direcionado. O modelo mantém `composer test -- tests/XTest.php`
 e `composer phpstan -- src/X.php` para seleções explícitas, sempre de arquivos individuais.
 
 Para guardar o log e o JUnit no CI reutilizável:

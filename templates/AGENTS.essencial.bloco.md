@@ -13,8 +13,11 @@ prove that the assertions are correct or that every scenario is tested. Human re
 necessary. Never regenerate golden files merely to make a failing test pass.
 
 Run focused tests while implementing, using the project's test runner and the smallest
-relevant file, suite or group. Run `php vendor/bin/rigor-verificar` when an implemented
-change is ready for review, even without a push. Report failures or blocked checks.
+relevant file, suite or group. Run the quick check only when the user asks to commit.
+Stage the authorized changes and let the Git `pre-commit` hook run
+`php vendor/bin/rigor-verificar --pre-commit`. If the hook is inactive, run the same command
+after staging and before committing. Report failures or monitored files that differ from
+the Git index. Keep unrelated changes out of the commit.
 Keep the project's full CI check on pull requests. Require it to pass before merging.
 
 The portable skills live in `.agents/skills/`. Enable the Claude Code or Codex Stop hook

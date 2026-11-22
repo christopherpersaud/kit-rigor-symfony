@@ -21,10 +21,10 @@ Optional formatting (0.5.0+) reuses project scripts: `rigor-formatar` applies `f
 locally and runs the non-writing `formatar:verificar` in CI. Do not impose a formatter.
 
 Preserve already authorized choices and existing project conventions. Set up the selected
-integrations. During implementation, use focused tests. Run `php vendor/bin/rigor-verificar`
-when an implemented change is ready for review. Run full CI on pull requests, independently
-of the agent. Install the Stop hook only when the user requests blocking checks for
-autonomous sessions. The installer uses `--stop` for this and removes legacy kit hooks without it.
+integrations. During implementation and review, use focused tests. When the user requests
+a commit, let the Git pre-commit hook run `php vendor/bin/rigor-verificar --pre-commit`. If
+inactive, run it after staging and before committing. Run full CI on pull requests. Install
+the Stop hook only when the user requests blocking checks for autonomous sessions. The installer uses `--stop` for this and removes legacy kit hooks without it.
 
 Report what changed, commands executed and their outcomes, any remaining blockers and the
 selected profile/integrations. Never report an unexecuted check as passed. Commit, tag, push

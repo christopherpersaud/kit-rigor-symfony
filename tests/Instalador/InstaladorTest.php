@@ -30,7 +30,45 @@ final class InstaladorTest extends TestCase
         self::assertSame("# CLAUDE.md\n\n@AGENTS.md\n", $this->ler('CLAUDE.md'));
         self::assertSame($this->doKit('skills/rigor-spec/SKILL.md'), $this->ler('.agents/skills/rigor-spec/SKILL.md'));
         self::assertSame($this->doKit('skills/rigor-spec/SKILL.md'), $this->ler('.claude/skills/rigor-spec/SKILL.md'));
-        self::assertTrue('Windows' === \PHP_OS_FAMILY ? is_readable($this->pasta.'/.githooks/pre-push') : is_executable($this->pasta.'/.githooks/pre-push'));
+        self::assertTrue('Windows' === \PHP_OS_FAMILY ? is_readable($this->pasta.'/.githooks/pre-commit') : is_executable($this->pasta.'/.githooks/pre-commit'));
+    }
+
+    public function testMigraPrePushOriginalDepoisDeInstalarPreCommit(): void
+    {
+        $prePush = <<<'SH'
+            #!/usr/bin/env bash
+            # Opcional: roda a verificação de revisão antes de cada push local.
+            # Sai na hora se nada mudou desde o último verde.
+            # Liga com: git config core.hooksPath .githooks
+            set -euo pipefail
+            cd "$(git rev-parse --show-toplevel)"
+            [[ "${VERIFICAR_DESLIGADO:-}" == 1 ]] && exit 0
+            exec vendor/bin/rigor-verificar
+            SH;
+        $this->gravar('.githooks/pre-push', $prePush."\n");
+
+        $simulacao = new Instalador($this->pasta, self::KIT, simular: true)->instalar();
+        self::assertContains(Acao::REMOVIDO, array_column($simulacao, 'tipo'));
+        self::assertFileExists($this->pasta.'/.githooks/pre-push');
+        self::assertFileDoesNotExist($this->pasta.'/.githooks/pre-commit');
+
+        $this->gravar('.githooks/pre-commit', "#!/bin/sh\necho personalizado\n");
+        self::assertSame(Acao::DIFERE, $this->instalar()['.githooks/pre-push']->tipo);
+        self::assertSame($prePush."\n", $this->ler('.githooks/pre-push'));
+
+        unlink($this->pasta.'/.githooks/pre-commit');
+        self::assertSame(Acao::REMOVIDO, $this->instalar()['.githooks/pre-push']->tipo);
+        self::assertFileDoesNotExist($this->pasta.'/.githooks/pre-push');
+        self::assertStringContainsString('rigor-verificar --pre-commit', $this->ler('.githooks/pre-commit'));
+    }
+
+    public function testPreservaPrePushDoProjeto(): void
+    {
+        $personalizado = "#!/bin/sh\necho personalizado\n";
+        $this->gravar('.githooks/pre-push', $personalizado);
+
+        self::assertSame(Acao::DIFERE, $this->instalar()['.githooks/pre-push']->tipo);
+        self::assertSame($personalizado, $this->ler('.githooks/pre-push'));
     }
 
     public function testHooksNoFormatoDeCadaAgente(): void
@@ -181,10 +219,11 @@ final class InstaladorTest extends TestCase
         self::assertSame([], $this->conteudos());
     }
 
-    public function testPerfilEssencialSemAgentesNaoInstalaArquiteturaCiOuHooks(): void
+    public function testPerfilEssencialInstalaPreCommitSemArquiteturaCiOuStop(): void
     {
         new Instalador($this->pasta, self::KIT, agentes: [], perfil: 'essencial')->instalar();
 
+        self::assertFileExists($this->pasta.'/.githooks/pre-commit');
         self::assertFileExists($this->pasta.'/tests/Spec/RastreabilidadeTest.php');
         self::assertFileExists($this->pasta.'/.agents/skills/rigor-instalar/references/instalacao.md');
         self::assertStringContainsString('perfil essencial', $this->ler('AGENTS.md'));

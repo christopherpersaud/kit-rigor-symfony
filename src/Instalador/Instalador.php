@@ -18,6 +18,7 @@ use function Symfony\Component\String\u;
  * - CLAUDE.md: criado com `@AGENTS.md` quando falta (o Codex lê o AGENTS.md direto);
  * - skills (skills/rigor-*): copiadas para .agents/skills/ (Codex) e .claude/skills/ (Claude Code),
  *   substituindo a versão anterior do kit;
+ * - pre-commit do Git: instala o modelo e migra o pre-push quando ele é o original do kit;
  * - hook Stop: instalado só por opção explícita; por padrão remove as entradas gerenciadas
  *   pelo kit, preservando o restante da configuração;
  * - scripts do composer: os que faltam são relatados (o composer.json é editado à mão ou pela skill).
@@ -31,6 +32,7 @@ final class Instalador
     public const string FIM = '<!-- kit-rigor:fim -->';
     public const array AGENTES = ['claude', 'codex', 'cursor', 'copilot', 'gemini', 'opencode'];
 
+    private const string PRE_COMMIT = '.githooks/pre-commit';
     private const string HOOK = 'rigor-hook-stop';
 
     /** @var list<Acao> */
@@ -61,6 +63,7 @@ final class Instalador
     {
         $this->acoes = [];
         $this->copiarModelos();
+        $this->migrarPrePush();
         $this->blocoDoAgentsMd();
         if (\in_array('claude', $this->agentes, true)) {
             $this->claudeMd();
@@ -82,13 +85,13 @@ final class Instalador
     {
         $modelos = $this->kit.'/templates/projeto';
         foreach ($this->arquivosEm($modelos) as $relativo) {
-            if ('essencial' === $this->perfil && !\in_array($relativo, ['tests/Spec/RastreabilidadeTest.php', 'docs/modulos/README.md'], true)) {
+            if ('essencial' === $this->perfil && !\in_array($relativo, [self::PRE_COMMIT, 'tests/Spec/RastreabilidadeTest.php', 'docs/modulos/README.md'], true)) {
                 continue;
             }
             $destino = $this->projeto.'/'.$relativo;
             $conteudo = (string) file_get_contents($modelos.'/'.$relativo);
             if (!file_exists($destino)) {
-                $this->gravar($destino, $conteudo, '.githooks/pre-push' === $relativo || is_executable($modelos.'/'.$relativo));
+                $this->gravar($destino, $conteudo, self::PRE_COMMIT === $relativo || is_executable($modelos.'/'.$relativo));
                 $this->acoes[] = new Acao(Acao::CRIADO, $relativo);
             } elseif ((string) file_get_contents($destino) === $conteudo) {
                 $this->acoes[] = new Acao(Acao::IGUAL, $relativo);
@@ -96,6 +99,46 @@ final class Instalador
                 $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'compare com '.$this->doKit('templates/projeto/'.$relativo));
             }
         }
+    }
+
+    private function migrarPrePush(): void
+    {
+        $relativo = '.githooks/pre-push';
+        $prePush = $this->projeto.'/'.$relativo;
+        if (!is_file($prePush) && !is_link($prePush)) {
+            return;
+        }
+
+        // Modelos publicados antes da migração. Preserve qualquer personalização do projeto.
+        $originais = [
+            'b6596cc9abfc9c801b4f2a98c6bc3288b19ebb077932fcbabc31c3877656872a',
+            '1a9a3920cc47c25486321e86e9096b00194c823038aa476dd785bbcf70fc984b',
+        ];
+        if (is_link($prePush) || !\in_array(hash('sha256', str_replace("\r\n", "\n", (string) file_get_contents($prePush))), $originais, true)) {
+            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'hook do projeto preservado; confira se ele ainda roda o check rápido no push');
+
+            return;
+        }
+
+        $destino = $this->projeto.'/'.self::PRE_COMMIT;
+        $modelo = (string) file_get_contents($this->kit.'/templates/projeto/'.self::PRE_COMMIT);
+        $destinoExiste = file_exists($destino) || is_link($destino);
+        if ((!$this->simular || $destinoExiste) && (
+            !is_file($destino)
+            || $modelo !== (string) file_get_contents($destino)
+            || ('Windows' !== \PHP_OS_FAMILY && !is_executable($destino))
+        )) {
+            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'integre o pre-commit do kit antes de retirar a verificação do pre-push');
+
+            return;
+        }
+        if (!$this->simular && !@unlink($prePush)) {
+            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'não foi possível remover o hook antigo do kit');
+
+            return;
+        }
+
+        $this->acoes[] = new Acao(Acao::REMOVIDO, $relativo, 'check rápido transferido para o pre-commit do kit');
     }
 
     private function blocoDoAgentsMd(): void
