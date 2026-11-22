@@ -60,8 +60,8 @@ code, or ask before changing the rule.
 ## Harness portability
 
 The current agent must have repository and terminal access. Run the affected tests as you
-implement and run the review check when the requested change is ready for review. Report
-failures or blocked checks accurately. Preserve the project's chosen checks, runner and
+implement. Run the commit check only when the user requests a commit. Report failures or
+blocked checks accurately. Preserve the project's chosen checks, runner and
 platform. In PowerShell use `$env:NAME` for temporary variables and restore the old value
 afterwards. Use `php vendor/bin/...` in terminals and `@php` in Composer scripts.
 
@@ -115,17 +115,16 @@ Without `formatar`, nothing runs; with it, a missing CI script fails the CI chec
 Preserve the project's formatter and style. The full green fingerprint includes files after
 formatting, so the next unchanged turn skips the check.
 
-- **During implementation:** run the affected test file, suite or group with `composer test --`.
-  Intermediate updates, questions and requests for spec approval can end with focused results.
-- **Ready for review:** run `php vendor/bin/rigor-verificar` before handing off an implemented
-  change that touched checked files, even without a push. It runs the configured review check (by default
-  `composer check:rapido`) and reuses a passing result for unchanged checked content. The
-  default check includes project lints, PHPStan and the PHP suite without coverage.
-  Fix failures or report the blocking error from `var/check/ultimo.log`.
-- **Autonomous sessions (opt-in):** when the user enables the Stop hook, the agent runs the
-  verifier when it attempts to end a turn. If configured, layout-only changes can use
-  `extra.rigor.verificar.leve`; a light pass does not replace the review check.
-  The optional Git `pre-push` hook can also run the review check before a push.
+- **During implementation and review:** run the affected test file, suite or group with
+  `composer test --`. A handoff for review uses these focused results.
+- **When the user requests a commit:** stage only the authorized changes and let the Git
+  `pre-commit` hook run `php vendor/bin/rigor-verificar --pre-commit`. If the project's hook
+  is inactive, run that command after staging and before committing. It runs the configured
+  quick check (`composer check:rapido` by default). Report failures from `var/check/ultimo.log`.
+  If monitored files differ from the Git index, report the paths and keep their staged and
+  unstaged changes intact. Inspect any formatter changes before staging or retrying.
+- **Autonomous sessions (opt-in):** the user can enable the Stop hook for verification when
+  the agent attempts to end a turn. The Git commit check still requires the full local command.
 - **`composer check`, in the CI** (`.github/workflows/ci.yml`, calling the kit's reusable
   workflow on every push to the main branch and every PR): `check:rapido` plus the slow parts
   (production build). When the project has Doctrine Migrations, a second job runs every

@@ -6,7 +6,7 @@ escrita por agentes de programação. O kit liga regras documentadas, referênci
 cenário ou a segurança do código. Hooks opcionais e CI ajudam a executar as verificações.
 
 *In English:* a Symfony/PHP kit that turns module docs into traceable specs, adds golden-file
-tests, a local review check, a coverage gate, phpat architecture rules
+tests, a local pre-commit check, a coverage gate, phpat architecture rules
 and a reusable GitHub Actions workflow. Portable Agent Skills, optional Claude Code/Codex Stop hooks, explicit verification on other
 coding agents, Windows/Linux support and an Agensi skill-pack builder. Docs and messages
 include Brazilian Portuguese. Traceability supports, and does not replace, human review.
@@ -17,7 +17,7 @@ include Brazilian Portuguese. Traceability supports, and does not replace, human
 |---|---|---|
 | **Specs rastreáveis** | Regras de negócio com ID permanente (`CLI-04`) e cenários "Dado/quando/então" nos docs de módulo. A suíte reprova se uma regra ativa fica sem teste, se um teste cita uma regra que não existe ou foi revogada, ou se um ID se repete. | `KitRigor\Spec\RastreabilidadeTestCase` |
 | **Testes dourados** | A saída inteira (XML, HTML, JSON) comparada com um arquivo aprovado; qualquer mudança aparece como diff. | `KitRigor\Dourado` |
-| **Verificação para revisão** | Roda o check local quando a mudança está pronta. O hook `Stop` é opcional para sessões autônomas no Claude Code e no Codex. | `vendor/bin/rigor-verificar`, `vendor/bin/rigor-hook-stop` |
+| **Verificação antes do commit** | Roda o check local no pre-commit do Git. O hook `Stop` é opcional para sessões autônomas no Claude Code e no Codex. | `vendor/bin/rigor-verificar`, `vendor/bin/rigor-hook-stop` |
 | **Trava de cobertura** | Piso por pasta, piso total e nenhum arquivo a 0%; os pisos só sobem. | `vendor/bin/rigor-cobertura` |
 | **Regras de arquitetura** | phpat dentro do PHPStan: camadas, UseCase `final`, controller fino, mapa de dependência entre módulos. | `KitRigor\Arquitetura\RegrasSymfony` |
 | **CI reutilizável** | Check completo, cobertura, migrations num banco vazio (MySQL e MariaDB) e, opcional, mutação nas linhas mudadas, chamado com `uses:`. | `.github/workflows/php-check.yml` |
@@ -29,14 +29,12 @@ include Brazilian Portuguese. Traceability supports, and does not replace, human
 | Quando | O que rodar |
 |---|---|
 | Durante a implementação | Testes do arquivo, módulo ou regra alterada, por exemplo `composer test -- tests/XTest.php`, `composer test -- --testsuite <módulo>` ou `composer test -- --group CLI-04`. |
-| Quando a mudança estiver pronta para revisão | `php vendor/bin/rigor-verificar`, mesmo sem push. Por padrão, ele roda `composer check:rapido` e reaproveita o último resultado verde quando o conteúdo monitorado é igual. |
+| Quando você pedir um commit | O Git roda `php vendor/bin/rigor-verificar --pre-commit`. O hook usa `composer check:rapido` por padrão e bloqueia o commit se o check falhar. |
 | No pull request | O workflow roda o check completo em ambiente limpo, com os jobs adotados pelo projeto. Configure os checks do PR como obrigatórios para o merge na proteção da branch ou no ruleset do GitHub. |
 
 O modelo de CI do perfil completo dispara em `pull_request` e em pushes na branch principal.
 Se o projeto já tem CI ou usa o perfil essencial, configure o check completo no PR no
-workflow do próprio projeto. O `pre-push` do Git é opcional e roda o check de revisão a
-cada push local quando ativado. Para fazer pushes intermediários sem essa espera, use o
-check local na entrega e deixe a validação obrigatória no PR.
+workflow do próprio projeto.
 
 ## Primeiros passos
 
@@ -138,6 +136,29 @@ o instalador não pode decidir sozinho:
 - as opções do CI.
 
 Ela pergunta antes de tudo o que é decisão sua.
+
+### Ativar o pre-commit do Git
+
+O instalador copia `.githooks/pre-commit` nos dois perfis. Em cada clone que usa os hooks
+do kit, ative o diretório:
+
+```bash
+git config --local core.hooksPath .githooks
+```
+
+Se o clone já usa `.githooks`, o novo hook entra em vigor na atualização. Se usa outro
+diretório ou gerenciador de hooks, preserve-o e inclua o comando
+`php vendor/bin/rigor-verificar --pre-commit` no pre-commit existente. Enquanto o hook
+estiver inativo, o agente roda esse comando depois de preparar o índice e antes de commitar.
+
+A atualização retira o `.githooks/pre-push` original do kit depois de instalar o
+pre-commit. Um hook personalizado é preservado e aparece na saída para revisão.
+
+O check roda sobre a cópia de trabalho. Para garantir que o resultado corresponda ao
+commit, ele exige que os arquivos monitorados coincidam com o índice do Git. Se houver
+alterações monitoradas fora do índice, inclusive formatação feita durante o check, o hook
+bloqueia o commit e lista os caminhos. Revise o diff e adicione ao índice só o que deve
+entrar no commit. O hook nunca executa `git add`.
 
 ### Hook Stop para sessões autônomas
 
@@ -324,8 +345,7 @@ que mudou desde o último verde **completo** casa com `leve.arquivos`, o hook de
 roda `leve.comando` no lugar do completo: um ajuste de layout passa só pelos lints e pelo que o
 projeto puser no comando leve, em segundos. Os padrões são fnmatch na ordem, e um `!` na frente
 tira da lista o que casar (um template com teste dourado, por exemplo). O verde leve não conta
-como completo. Na revisão, `php vendor/bin/rigor-verificar` roda o comando configurado
-para a tarefa. O CI roda a validação completa do projeto.
+como completo. No pre-commit, o verificador roda o comando local configurado. O CI roda a validação completa do projeto.
 
 ### Adoção por escopo (opcional)
 
@@ -349,7 +369,7 @@ verificado mesmo se houver uma regra de ignorar JSON. Não é preciso marcar tod
 
 A escolha dos arquivos e das regressões afetadas é manual. Exclua do leve e-mails, PDFs,
 exportações e templates com testes dourados. Sem verde anterior na worktree, a primeira
-verificação é direcionada; o verde leve não substitui a verificação do pre-push.
+verificação é direcionada; o verde leve não substitui a verificação do pre-commit.
 
 Esse modo não é instalado nem ativado automaticamente. A skill preserva os comandos, o
 executor PHPUnit e os níveis de análise do projeto. Cobertura, mutação e migrations continuam

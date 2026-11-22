@@ -11,8 +11,8 @@ use function Symfony\Component\String\u;
 
 /**
  * Roda o comando de verificação do projeto (`composer check:rapido`) se algum arquivo verificado
- * mudou desde a última verificação verde. Usado pelo hook de fim de turno do agente e pelo pre-push
- * do git; também serve à mão (`vendor/bin/rigor-verificar`).
+ * mudou desde a última verificação verde. Usado pelo hook de fim de turno do agente e pelo pre-commit
+ * do Git; também serve à mão (`vendor/bin/rigor-verificar`).
  *
  * A impressão digital é o conteúdo dos arquivos na pasta de trabalho (rastreados e novos, fora os
  * ignorados pelo git e os de `ignorar`), não o HEAD: o que ficou verde antes de virar commit
@@ -20,7 +20,7 @@ use function Symfony\Component\String\u;
  *
  * Verificação leve (`verificar.leve`, só no hook de fim de turno): se tudo o que mudou desde o
  * último verde completo é de layout (`leve.arquivos`), roda o comando leve no lugar do completo.
- * O verde leve não conta como completo: a próxima mudança fora da lista, o pre-push e o CI ainda
+ * O verde leve não conta como completo: a próxima mudança fora da lista, o pre-commit e o CI ainda
  * passam a suíte inteira por cima do que o leve deixou passar.
  *
  * Estado e log em var/check/: `verde.json` (o sha1 de cada arquivo no último verde completo),
@@ -40,8 +40,12 @@ final readonly class Verificador
      * @param bool $permitirLeve se tudo o que mudou desde o último verde completo casa com
      *                           `verificar.leve.arquivos`, roda o comando leve no lugar do completo
      */
-    public function verificar(bool $mesmoSemMudanca = false, bool $permitirLeve = false): Verificacao
+    public function verificar(bool $mesmoSemMudanca = false, bool $permitirLeve = false, bool $preCommit = false): Verificacao
     {
+        if ($preCommit) {
+            $this->conferirIndice();
+        }
+
         $estado = $this->config->caminho(self::PASTA_ESTADO);
         if (!is_dir($estado)) {
             mkdir($estado, 0o777, true);
@@ -54,7 +58,7 @@ final readonly class Verificador
             return new Verificacao(Verificacao::SEM_MUDANCA);
         }
 
-        if (!$mesmoSemMudanca && $permitirLeve && null !== $this->config->comandoLeve && null !== $verde && $this->soMudouLeve($verde, $conteudo)) {
+        if (!$preCommit && !$mesmoSemMudanca && $permitirLeve && null !== $this->config->comandoLeve && null !== $verde && $this->soMudouLeve($verde, $conteudo)) {
             if ($atual === @file_get_contents($estado.'/verde-leve')) {
                 return new Verificacao(Verificacao::SEM_MUDANCA, comando: $this->config->comandoLeve, leve: true);
             }
@@ -67,6 +71,10 @@ final readonly class Verificador
         $verificacao = $this->rodar($this->config->comandoVerificar, false);
         @unlink($estado.'/verde');
         if ($verificacao->passou()) {
+            if ($preCommit) {
+                @unlink($estado.'/verde.json');
+                $this->conferirIndice();
+            }
             file_put_contents($estado.'/verde.json', json_encode($this->conteudo(), \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR));
         } else {
             @unlink($estado.'/verde.json');
@@ -95,7 +103,23 @@ final readonly class Verificador
     /** @return list<string> */
     public function arquivos(): array
     {
-        $comando = array_merge(['git', 'ls-files', '-c', '-o', '--exclude-standard', '--deduplicate', '-z', '--'], $this->config->caminhosVerificados);
+        return $this->listarArquivos('-c', exigirArquivo: true);
+    }
+
+    private function conferirIndice(): void
+    {
+        $foraDoIndice = $this->listarArquivos('-m', exigirArquivo: false);
+        if ([] !== $foraDoIndice) {
+            $mensagem = "O check do commit exige que os arquivos monitorados estejam iguais ao índice do Git.\n"
+                ."Revise e adicione as mudanças desejadas com git add antes de tentar de novo:\n";
+            throw new \RuntimeException($mensagem.implode("\n", $foraDoIndice));
+        }
+    }
+
+    /** @return list<string> */
+    private function listarArquivos(string $selecao, bool $exigirArquivo): array
+    {
+        $comando = array_merge(['git', 'ls-files', $selecao, '-o', '--exclude-standard', '--deduplicate', '-z', '--'], $this->config->caminhosVerificados);
         $git = proc_open($comando, [1 => ['pipe', 'w'], 2 => ['file', self::dispositivoNulo(), 'w']], $pipes, $this->config->raiz);
         if (false === $git) {
             throw new \RuntimeException('Não foi possível executar git ls-files.');
@@ -109,7 +133,7 @@ final readonly class Verificador
         $specs = u($this->config->specs)->trimEnd('/')->append('/');
         $arquivos = [];
         foreach (explode("\0", $saida) as $arquivo) {
-            if ('' === $arquivo || !is_file($this->config->caminho($arquivo))) {
+            if ('' === $arquivo || ($exigirArquivo && !is_file($this->config->caminho($arquivo)))) {
                 continue;
             }
             if ($arquivo !== $this->config->escopoVerificacao && !u($arquivo)->startsWith($specs->toString()) && $this->ignorado($arquivo)) {

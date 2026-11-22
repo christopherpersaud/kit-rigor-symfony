@@ -88,6 +88,60 @@ final class VerificadorTest extends TestCase
         self::assertSame(['src/A.php'], new Verificador($config)->arquivos());
     }
 
+    public function testPreCommitPreservaStageParcialEIgnoraMarkdownForaDasSpecs(): void
+    {
+        $this->adicionarAoIndice();
+        $verificador = $this->verificador($this->comandoPhp('file_put_contents("var/rodou", "sim");'));
+        $this->gravar('README.md', 'fora do índice');
+        $this->gravar('src/A.php', '<?php // fora do índice');
+
+        try {
+            $verificador->verificar(preCommit: true);
+            self::fail('Esperava uma divergência no índice.');
+        } catch (\RuntimeException $erro) {
+            self::assertStringContainsString('src/A.php', $erro->getMessage());
+            self::assertStringNotContainsString('README.md', $erro->getMessage());
+        }
+        self::assertFileDoesNotExist($this->pasta.'/var/rodou');
+
+        $this->adicionarAoIndice();
+        self::assertSame(Verificacao::VERDE, $verificador->verificar(preCommit: true)->situacao);
+        self::assertSame(Verificacao::SEM_MUDANCA, $verificador->verificar(preCommit: true)->situacao);
+    }
+
+    public function testPreCommitRecusaArquivosMonitoradosNovosEExcluidosForaDoIndice(): void
+    {
+        $this->adicionarAoIndice();
+        unlink($this->pasta.'/src/A.php');
+        $this->gravar('docs/modulos/modulo-a.md', 'spec nova');
+        $verificador = $this->verificador($this->comandoPhp('exit(0);'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("docs/modulos/modulo-a.md\nsrc/A.php");
+        $verificador->verificar(preCommit: true);
+    }
+
+    public function testPreCommitNaoGravaVerdeSeOCheckAlterarOConteudo(): void
+    {
+        $this->adicionarAoIndice();
+        $verificador = $this->verificador($this->comandoPhp('file_put_contents("src/A.php", "<?php // formatado");'));
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('src/A.php');
+
+        try {
+            $verificador->verificar(preCommit: true);
+        } finally {
+            self::assertSame('<?php // formatado', $this->ler('src/A.php'));
+            self::assertFileDoesNotExist($this->pasta.'/var/check/verde.json');
+        }
+    }
+
+    private function adicionarAoIndice(): void
+    {
+        exec(\sprintf('git -C %s add -A 2>&1', escapeshellarg($this->pasta)), $saida, $codigo);
+        self::assertSame(0, $codigo, implode("\n", $saida));
+    }
+
     public function testArquivoApagadoMudaAImpressaoDigital(): void
     {
         $this->gravar('src/B.php', 'b');
@@ -173,7 +227,7 @@ final class VerificadorTest extends TestCase
         $completo = $verificador->verificar();
         $leveDepoisDoCompleto = $verificador->verificar(permitirLeve: true);
 
-        self::assertSame([Verificacao::VERDE, false], [$completo->situacao, $completo->leve], 'Sem permitirLeve (pre-push), o layout que só passou no leve roda o completo.');
+        self::assertSame([Verificacao::VERDE, false], [$completo->situacao, $completo->leve], 'Sem permitirLeve (pre-commit), o layout que só passou no leve roda o completo.');
         self::assertSame(Verificacao::SEM_MUDANCA, $leveDepoisDoCompleto->situacao);
         self::assertSame("completo\nleve\ncompleto\n", $this->ler('var/rodou.log'));
     }

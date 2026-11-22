@@ -15,5 +15,6 @@ ele instala. Ele é público: nada de segredo, dado pessoal ou detalhe de um pro
 - Mudança que quebra projetos já instalados (classe, método, chave do `extra.rigor`, input do
   workflow) exige versão maior e nota no CHANGELOG.md.
 
-Antes de terminar: `composer check` (php-cs-fixer, PHPStan nível 10, PHPUnit) tem de passar.
-Commit, branch, tag e push só quando o usuário pedir.
+Durante a implementação e a revisão, rode os testes afetados. Quando o usuário pedir um
+commit, rode `composer check` (php-cs-fixer, PHPStan nível 10, PHPUnit) antes de gravá-lo.
+O CI do kit roda a verificação completa no PR. Commit, branch, tag e push só quando o usuário pedir.
