@@ -9,7 +9,7 @@ description: Run and interpret Infection mutation tests in a Symfony/PHP project
 
 Requer acesso aos arquivos e ao terminal do projeto, PHP 8.4+, Git e o pacote Composer `christopherpersaud/kit-rigor-symfony` compatível com PHPUnit 12/13. A entrega por Agensi/MCP fornece as instruções; não instala a biblioteca ou hooks. Localize o pacote com `composer show christopherpersaud/kit-rigor-symfony --path`. Na ausência dele, explique o requisito e instale somente quando isso fizer parte do pedido autorizado. Preserve as decisões do projeto e não atualize sua plataforma por consequência.
 
-Sem hook Stop confiável e funcional no agente atual, rode `php vendor/bin/rigor-verificar` explicitamente antes de concluir mudanças em arquivos verificados. Se faltar acesso ao repositório ou execução, ofereça somente análise/spec e indique quais checks não foram executados.
+Durante a implementação, rode os testes afetados. Quando a mudança estiver pronta para revisão, rode `php vendor/bin/rigor-verificar`. Se faltar acesso ao repositório ou execução, ofereça somente análise/spec e indique quais checks não foram executados.
 
 
 Requer também Infection e um driver de cobertura instalado e habilitado. Não habilite mutação apenas porque a skill foi carregada. O Infection muda o código: inverte uma condição, apaga uma chamada, desloca um limite. Depois

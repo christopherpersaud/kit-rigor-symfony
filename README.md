@@ -6,7 +6,7 @@ escrita por agentes de programação. O kit liga regras documentadas, referênci
 cenário ou a segurança do código. Hooks opcionais e CI ajudam a executar as verificações.
 
 *In English:* a Symfony/PHP kit that turns module docs into traceable specs, adds golden-file
-tests, an end-of-turn check for Claude Code and Codex, a coverage gate, phpat architecture rules
+tests, a local review check, a coverage gate, phpat architecture rules
 and a reusable GitHub Actions workflow. Portable Agent Skills, optional Claude Code/Codex Stop hooks, explicit verification on other
 coding agents, Windows/Linux support and an Agensi skill-pack builder. Docs and messages
 include Brazilian Portuguese. Traceability supports, and does not replace, human review.
@@ -17,12 +17,26 @@ include Brazilian Portuguese. Traceability supports, and does not replace, human
 |---|---|---|
 | **Specs rastreáveis** | Regras de negócio com ID permanente (`CLI-04`) e cenários "Dado/quando/então" nos docs de módulo. A suíte reprova se uma regra ativa fica sem teste, se um teste cita uma regra que não existe ou foi revogada, ou se um ID se repete. | `KitRigor\Spec\RastreabilidadeTestCase` |
 | **Testes dourados** | A saída inteira (XML, HTML, JSON) comparada com um arquivo aprovado; qualquer mudança aparece como diff. | `KitRigor\Dourado` |
-| **Verificação no fim do turno** | O hook `Stop` do Claude Code e do Codex roda o `composer check:rapido` se algo mudou desde o último verde (ou um comando leve, se só mudou layout); se falhar, o agente continua o turno até corrigir. | `vendor/bin/rigor-hook-stop`, `vendor/bin/rigor-verificar` |
+| **Verificação para revisão** | Roda o check local quando a mudança está pronta. O hook `Stop` é opcional para sessões autônomas no Claude Code e no Codex. | `vendor/bin/rigor-verificar`, `vendor/bin/rigor-hook-stop` |
 | **Trava de cobertura** | Piso por pasta, piso total e nenhum arquivo a 0%; os pisos só sobem. | `vendor/bin/rigor-cobertura` |
 | **Regras de arquitetura** | phpat dentro do PHPStan: camadas, UseCase `final`, controller fino, mapa de dependência entre módulos. | `KitRigor\Arquitetura\RegrasSymfony` |
 | **CI reutilizável** | Check completo, cobertura, migrations num banco vazio (MySQL e MariaDB) e, opcional, mutação nas linhas mudadas, chamado com `uses:`. | `.github/workflows/php-check.yml` |
 | **Instruções para o agente** | Bloco do `AGENTS.md` (lido pelo Codex direto e pelo Claude via `CLAUDE.md` → `@AGENTS.md`). | `templates/AGENTS.bloco.md` |
 | **Skills** | `rigor-instalar`, `rigor-spec`, `rigor-mutacao`, no padrão Agent Skills, conforme ferramentas e permissões do agente. | `skills/` |
+
+## Fluxo de desenvolvimento
+
+| Quando | O que rodar |
+|---|---|
+| Durante a implementação | Testes do arquivo, módulo ou regra alterada, por exemplo `composer test -- tests/XTest.php`, `composer test -- --testsuite <módulo>` ou `composer test -- --group CLI-04`. |
+| Quando a mudança estiver pronta para revisão | `php vendor/bin/rigor-verificar`, mesmo sem push. Por padrão, ele roda `composer check:rapido` e reaproveita o último resultado verde quando o conteúdo monitorado é igual. |
+| No pull request | O workflow roda o check completo em ambiente limpo, com os jobs adotados pelo projeto. Configure os checks do PR como obrigatórios para o merge na proteção da branch ou no ruleset do GitHub. |
+
+O modelo de CI do perfil completo dispara em `pull_request` e em pushes na branch principal.
+Se o projeto já tem CI ou usa o perfil essencial, configure o check completo no PR no
+workflow do próprio projeto. O `pre-push` do Git é opcional e roda o check de revisão a
+cada push local quando ativado. Para fazer pushes intermediários sem essa espera, use o
+check local na entrega e deixe a validação obrigatória no PR.
 
 ## Primeiros passos
 
@@ -68,15 +82,12 @@ O caminho de uma primeira instalação, na ordem. Os detalhes de cada passo est�
    - **Arquitetura:** o mapa de módulos sai das dependências reais. Os controllers que já leem
      repository entram como exceção até serem refeitos.
 
-5. **Deixe o check verde.** Rode `composer check:rapido` e `php vendor/bin/rigor-verificar --tudo`.
-   Com o hook Stop ligado, um check vermelho prende o agente no fim de cada turno.
+5. **Valide a instalação.** Rode `php vendor/bin/rigor-verificar --tudo`.
 
 6. **Suba o CI.** O token precisa do escopo `workflow` para enviar `.github/workflows/`
    (`gh auth refresh -h github.com -s workflow`). Com Encore, configure `preparo-cobertura` e
    `preparo-mutacao` (veja [Cache e builds no CI](#cache-e-builds-no-ci)). Ligue a mutação
    depois do primeiro CI verde.
-
-7. **Codex:** confie nos hooks do projeto com `/hooks`.
 
 ## Como instalar num projeto
 
@@ -109,7 +120,9 @@ O instalador preserva arquivos não gerenciados e atualiza somente as peças do 
   `<!-- kit-rigor:fim -->`. Rodar de novo troca só o bloco.
 - **`CLAUDE.md`:** criado com `@AGENTS.md` se faltar.
 - **Skills:** vão para `.agents/skills/` (Codex) e `.claude/skills/` (Claude Code).
-- **Hook `Stop`:** acrescentado ao `.claude/settings.json` e ao `.codex/hooks.json`.
+- **Hook `Stop`:** o instalador só adiciona o hook com `--stop`. Uma instalação sem essa
+  opção remove as entradas Stop geradas pelo kit em versões anteriores. As outras entradas
+  e configurações dos agentes são preservadas.
 - **Scripts do `composer.json`:** os que faltam são listados, não gravados. O modelo está em
   `templates/referencia/composer-scripts.json`.
 
@@ -126,10 +139,23 @@ o instalador não pode decidir sozinho:
 
 Ela pergunta antes de tudo o que é decisão sua.
 
-### Codex: um passo a mais
+### Hook Stop para sessões autônomas
 
-Os hooks de projeto do Codex só rodam depois de você confiar neles com `/hooks`, e só se a pasta
-`.codex/` do projeto for confiável.
+Ative na cópia de trabalho que vai usar para a sessão autônoma, escolhendo o agente:
+
+```bash
+php vendor/bin/rigor instalar --agentes=codex --stop
+```
+
+O instalador grava `.codex/hooks.json` para Codex e `.claude/settings.json` para Claude Code,
+conforme o agente selecionado. No Codex, confie no hook do projeto com `/hooks` em uma pasta
+confiável. Enquanto instalado, ele se aplica às sessões desse agente na cópia de trabalho.
+Quando a verificação falha, o hook pode bloquear o encerramento do turno e devolver a falha
+ao agente para correção.
+
+Rode o instalador com o perfil e os agentes escolhidos, sem `--stop`, para voltar ao fluxo
+interativo ou atualizar uma instalação antiga. Use `--simular` para conferir a remoção antes
+de gravar. Repita `--stop` numa atualização se quiser manter o hook nessa cópia de trabalho.
 
 ## Agentes, perfis e Windows
 
@@ -152,24 +178,21 @@ php vendor/bin/rigor instalar --perfil=completo --agentes=cursor,gemini,copilot,
 | Integração | O que é instalado |
 |---|---|
 | Núcleo, sempre | `AGENTS.md` e `.agents/skills/` |
-| Claude Code | `CLAUDE.md`, `.claude/skills/` e hook Stop |
-| Codex | Hook Stop, sujeito à confiança do usuário |
+| Claude Code | `CLAUDE.md` e `.claude/skills/`. Hook Stop com `--stop` |
+| Codex | Hook Stop com `--stop`, sujeito à confiança do usuário |
 | Cursor / OpenCode | Skills compartilhadas e AGENTS.md; nenhum hook específico é instalado |
 | Gemini CLI | Skills compartilhadas e `GEMINI.md` remetendo ao AGENTS.md |
 | Copilot | Skills compartilhadas e `.github/copilot-instructions.md` remetendo ao AGENTS.md |
 | Agensi / MCP | Entrega as instruções; a biblioteca é instalada pelo Composer no projeto |
 
-Sem um hook configurado, confiável e funcional, execute `php vendor/bin/rigor-verificar`
-explicitamente antes de concluir mudanças em arquivos verificados. O CI completo permanece
-independente do agente. Uma conversa sem arquivos/terminal só pode oferecer orientação.
 A descoberta das skills foi conferida com a documentação dos agentes; não é uma certificação
 por execução de sessões completas em todos eles.
 
 O perfil `essencial` copia o teste de rastreabilidade e o catálogo de módulos, sem modelos
 PHPStan/phpat, cobertura, Infection ou CI. O `completo` preserva o conjunto anterior de modelos;
-a skill ajusta as verificações realmente adotadas. Sem novas opções, o instalador mantém o
-comportamento anterior: completo com Claude e Codex. Repita explicitamente o perfil e os
-agentes escolhidos nas atualizações; uma seleção não remove configurações antigas.
+a skill ajusta as verificações adotadas. O padrão é o perfil completo, com as instruções do
+Claude Code e as skills compartilhadas do Codex. Repita o perfil e os agentes escolhidos
+nas atualizações.
 
 Windows nativo usa `NUL` e caminhos normalizados. Os comandos dos hooks resolvem a raiz pelo
 Git dentro do PHP, sem expansão Bash. Use `php vendor/bin/...` no terminal e `@php` nos scripts
@@ -296,13 +319,13 @@ Tudo é opcional. Os padrões são os de um projeto Symfony:
 Em `verificar.ignorar` ficam os arquivos que não disparam a verificação (fnmatch). Os docs de
 spec contam sempre, mesmo sendo Markdown, porque a rastreabilidade os lê.
 
-`verificar.leve` é opcional (sem ele, todo turno com mudança roda o `comando`). Quando tudo o
+`verificar.leve` é uma opção para o hook `Stop` autônomo. Quando tudo o
 que mudou desde o último verde **completo** casa com `leve.arquivos`, o hook de fim de turno
 roda `leve.comando` no lugar do completo: um ajuste de layout passa só pelos lints e pelo que o
 projeto puser no comando leve, em segundos. Os padrões são fnmatch na ordem, e um `!` na frente
 tira da lista o que casar (um template com teste dourado, por exemplo). O verde leve não conta
-como completo: a primeira mudança fora da lista, o `vendor/bin/rigor-verificar` (pre-push) e o
-CI rodam o comando completo por cima do layout que só passou no leve.
+como completo. Na revisão, `php vendor/bin/rigor-verificar` roda o comando configurado
+para a tarefa. O CI roda a validação completa do projeto.
 
 ### Adoção por escopo (opcional)
 
@@ -311,7 +334,7 @@ Para projetos que preferem validar só a tarefa localmente, há um conjunto de m
 
 | Onde | O que valida |
 |---|---|
-| Layout no fim do turno | Lints dos templates selecionados e build quando há assets; sem PHPStan/PHPUnit |
+| Layout com Stop autônomo | Lints dos templates selecionados e build quando há assets; sem PHPStan/PHPUnit |
 | Código ou tarefa mista | PHPStan, lints e testes selecionados pelo projeto |
 | CI | Build de produção, PHPStan e PHPUnit completos, independentes da seleção local |
 

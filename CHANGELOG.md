@@ -1,5 +1,13 @@
 # Changelog
 
+## Não publicado
+
+- Validação local com testes focados durante a implementação e `rigor-verificar` quando
+  a mudança estiver pronta para revisão. O workflow do PR roda a validação completa.
+- O hook Stop do Claude Code e do Codex agora exige `rigor instalar --stop` para sessões
+  autônomas. Ao atualizar sem essa opção, o instalador remove apenas os hooks que o kit
+  gerou. Repita `--stop` para manter o modo autônomo.
+
 ## 0.5.1 (2026-11-11)
 
 - Workflow reutilizável: input `preparo-mutacao`, o preparo exclusivo do job de mutação (vazio

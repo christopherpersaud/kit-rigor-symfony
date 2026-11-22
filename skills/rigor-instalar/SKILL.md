@@ -20,10 +20,11 @@ MCP scripts or copy vendor dependencies into the skill distribution.
 Optional formatting (0.5.0+) reuses project scripts: `rigor-formatar` applies `formatar`
 locally and runs the non-writing `formatar:verificar` in CI. Do not impose a formatter.
 
-Preserve already authorized choices and existing project conventions. Set up only the selected
-integrations. Agent Skills discovery does not imply support for a Stop hook: when the current
-harness has no trusted, working hook, run `php vendor/bin/rigor-verificar` explicitly before
-finishing a task that changed checked files. Keep the full CI check independent of the agent.
+Preserve already authorized choices and existing project conventions. Set up the selected
+integrations. During implementation, use focused tests. Run `php vendor/bin/rigor-verificar`
+when an implemented change is ready for review. Run full CI on pull requests, independently
+of the agent. Install the Stop hook only when the user requests blocking checks for
+autonomous sessions. The installer uses `--stop` for this and removes legacy kit hooks without it.
 
 Report what changed, commands executed and their outcomes, any remaining blockers and the
 selected profile/integrations. Never report an unexecuted check as passed. Commit, tag, push

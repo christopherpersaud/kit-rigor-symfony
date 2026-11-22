@@ -1,7 +1,7 @@
 # Adoção por escopo, com layout leve e CI completo
 
-Opção para um projeto que quer validar a tarefa localmente sem rodar a base inteira a cada
-turno. Não é instalada automaticamente nem substitui a configuração existente.
+Opção para limitar a validação local de revisão ao escopo da tarefa. A instalação é manual
+e preserva a configuração existente. No PR, o CI continua rodando a validação completa.
 
 1. Copie `bin/verificar-escopo.php` para `bin/` do projeto e adapte os lints e o build ao que
    ele usa. O modelo executa PHPUnit sequencial; preserve o executor escolhido no projeto.
@@ -30,14 +30,14 @@ uma chamada manual sobre código. Não marque todo `*.json` como layout para con
 
 | Mudança | Validação |
 |---|---|
-| Só tela/assets e manifesto | `composer check:leve`: lints selecionados; build se houver assets |
+| Só tela/assets e manifesto, com Stop autônomo | `composer check:leve`: lints selecionados; build se houver assets |
 | PHP, testes, documentos ou tarefa mista | `composer check:rapido`: lints, PHPStan e testes selecionados |
-| Nada mudou desde o último verde | O hook não repete comandos |
+| Nada mudou desde o último verde | O verificador reaproveita o resultado |
 | CI | `composer check:ci`: lints, build, PHPStan e testes completos |
 
-Uma worktree sem verde anterior começa com o direcionado. O verde leve vale só para o fim do
-turno; o pre-push, quando ativado, continua no direcionado. Não rode o rápido de novo por cima
-de um verde leve apenas para encerrar o turno. O modelo mantém `composer test -- tests/XTest.php`
+Uma worktree sem verde anterior começa com o direcionado. O verde leve vale para o Stop
+autônomo. Na revisão, `php vendor/bin/rigor-verificar` roda o direcionado, assim como o
+`pre-push` opcional. O modelo mantém `composer test -- tests/XTest.php`
 e `composer phpstan -- src/X.php` para seleções explícitas, sempre de arquivos individuais.
 
 Para guardar o log e o JUnit no CI reutilizável:
