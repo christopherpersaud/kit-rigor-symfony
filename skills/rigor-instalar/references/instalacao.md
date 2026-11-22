@@ -65,7 +65,7 @@ php vendor/bin/rigor instalar --simular --perfil=essencial --agentes=nenhum
 php vendor/bin/rigor instalar --perfil=essencial --agentes=nenhum
 ```
 
-Troque os argumentos conforme a escolha autorizada. `--agentes=claude,codex,cursor,copilot,gemini,opencode` aceita uma lista de integrações; `nenhum` instala só AGENTS.md e `.agents/skills`. Apenas Claude/Codex recebem hooks Stop. Cursor/OpenCode usam AGENTS.md; Gemini/Copilot recebem uma instrução para lê-lo. A seleção não remove integrações antigas: relate as existentes antes de desligá-las.
+Troque os argumentos conforme a escolha autorizada. `--agentes=claude,codex,cursor,copilot,gemini,opencode` aceita uma lista de integrações; `nenhum` instala só AGENTS.md e `.agents/skills`. Cursor/OpenCode usam AGENTS.md, e Gemini/Copilot recebem uma instrução para lê-lo. Para ativar o hook Stop em sessões autônomas, acrescente `--stop` e selecione Claude Code ou Codex. Sem essa opção, o instalador remove só as entradas Stop gerenciadas pelo kit, inclusive em instalações antigas. Inspecione e relate hooks próprios do projeto separadamente.
 
 Localize a biblioteca com `composer show christopherpersaud/kit-rigor-symfony --path`. Todos os caminhos `templates/...` deste guia pertencem à **pasta desse pacote instalado**, normalmente `vendor/christopherpersaud/kit-rigor-symfony/`, e não à pasta da skill nem ao diretório temporário do MCP. Não execute os arquivos do pacote como scripts temporários isolados.
 
@@ -120,9 +120,8 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
     Testing, Checks, Static analysis), o agente leria tudo duas vezes. Proponha tirá-las do texto
     do projeto e deixar lá só o que é específico dele: nomes das testsuites, exceções, decisões.
   - **Hook de fim de turno próprio** (ex.: `.claude/hooks/verificar.sh` + `bin/verificar`):
-    remova-o do `.claude/settings.json` e apague os scripts. Os dois gravam `var/check/verde`
-    com impressões digitais diferentes, então um invalidaria o outro e a verificação rodaria
-    sempre.
+    identifique se ele ainda chama o check amplo. Mostre a configuração ao usuário antes
+    de alterar uma entrada que o kit não gerencia.
   - **Cópias locais do código do kit** (leitor de specs, `Dourado`, `bin/cobertura`): troque
     pelo kit.
     - `tests/Spec/RastreabilidadeTest.php` vira a classe vazia do modelo.
@@ -194,13 +193,14 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
   - Preencha cada piso com `floor(medido) - 2` e o `total` do mesmo jeito.
   - Para os arquivos a 0%, **(usuário)** pergunte se ganham teste agora ou se entram em
     `sem_teste`, sempre com o motivo.
-- **Pre-push do git (opcional):** **(usuário)** pergunte antes de rodar
-  `git config core.hooksPath .githooks`, porque muda a configuração local do git.
-- **Codex:** os hooks do projeto só rodam depois de o usuário confiar neles com `/hooks` no
-  Codex. Avise o usuário.
-- **Hook com check vermelho:** o hook Stop prende o agente até o check passar. Deixe o
-  `check:rapido` verde antes de encerrar a instalação, senão a próxima sessão começa corrigindo
-  dívida antiga. O Claude Code lê o `.claude/settings.json` ao abrir a sessão.
+- **Pre-push do Git (opcional):** ativa o check de revisão em todo push local. Confira se já
+  está ativo antes de propor sua adoção. Quem faz push durante o desenvolvimento pode usar
+  o check local só na entrega e o CI obrigatório no PR.
+- **Stop autônomo (opcional):** se solicitado, instale com `--stop` para os agentes escolhidos.
+  No Codex, oriente o usuário a confiar no hook do projeto com `/hooks`. No Claude Code,
+  confira a configuração na sessão que usará o hook.
+- **CI no PR:** confira se o workflow rodará em `pull_request` e se o comando completo
+  independe da seleção local. Oriente a exigir os checks adotados antes do merge.
 - **Push do CI:** enviar arquivos de `.github/workflows/` com um token OAuth (como o do `gh`)
   exige o escopo `workflow` (`gh auth refresh -h github.com -s workflow`). Commit e push só com
   pedido do usuário.
@@ -214,19 +214,16 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
 ## 5. Validar
 
 ```bash
-# PHPStan só quando adotado pelo projeto
-composer check:rapido
 php vendor/bin/rigor-verificar --tudo
 ```
 
-Os checks adotados têm de passar. Sem hook Stop configurado, confiável e funcional no harness atual, execute `php vendor/bin/rigor-verificar` explicitamente antes de concluir qualquer tarefa com arquivos verificados alterados. Não presuma que a presença de SKILL.md ou do MCP instala hooks. Mostre ao usuário o `git status` e o `git diff`. Commit, branch
-e push só quando o usuário pedir.
+Depois da instalação, use testes focados durante a tarefa e execute
+`php vendor/bin/rigor-verificar` quando a mudança estiver pronta para revisão. Mostre o
+`git status` e o `git diff`. Commit, branch e push só quando o usuário pedir.
 
-Em instalação com escopo, valide também a decisão do hook (layout + manifesto usa leve;
-PHP volta ao direcionado; sem mudanças não repete), a reprovação de um lint inválido e o CI
-completo autorizado em ambiente limpo. Um verde leve é suficiente para encerrar tarefa de
-layout: não rode o direcionado por cima dele. Na instalação, confirme primeiro um verde
-direcionado para estabelecer a referência da worktree.
+Em projetos que adotaram escopo, confira o comando de revisão com o manifesto e o CI
+independente em ambiente limpo. Se o usuário ativou o Stop, confira também a seleção do
+comando leve para layout e a reutilização de um resultado verde quando nada mudou.
 
 ## Atualizar depois
 
@@ -235,5 +232,5 @@ composer update christopherpersaud/kit-rigor-symfony
 php vendor/bin/rigor instalar --perfil=<perfil-escolhido> --agentes=<agentes-escolhidos>
 ```
 
-O bloco do `AGENTS.md` e as skills `rigor-*` são trocados. Os modelos que mudaram no kit
-aparecem como `difere`: decida com o usuário o que trazer.
+O bloco do `AGENTS.md` e as skills `rigor-*` são trocados. Modelos que mudaram no kit
+aparecem como `difere`. Repita `--stop` se o usuário quiser manter o modo autônomo nessa cópia.

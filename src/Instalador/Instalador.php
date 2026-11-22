@@ -18,8 +18,8 @@ use function Symfony\Component\String\u;
  * - CLAUDE.md: criado com `@AGENTS.md` quando falta (o Codex lê o AGENTS.md direto);
  * - skills (skills/rigor-*): copiadas para .agents/skills/ (Codex) e .claude/skills/ (Claude Code),
  *   substituindo a versão anterior do kit;
- * - hook de fim de turno: acrescentado ao .claude/settings.json e ao .codex/hooks.json se ainda
- *   não estiver lá;
+ * - hook Stop: instalado só por opção explícita; por padrão remove as entradas gerenciadas
+ *   pelo kit, preservando o restante da configuração;
  * - scripts do composer: os que faltam são relatados (o composer.json é editado à mão ou pela skill).
  *
  * Rodar de novo é seguro: é assim que se atualiza o projeto depois de um `composer update` do kit.
@@ -31,7 +31,6 @@ final class Instalador
     public const string FIM = '<!-- kit-rigor:fim -->';
     public const array AGENTES = ['claude', 'codex', 'cursor', 'copilot', 'gemini', 'opencode'];
 
-    /** Trecho que identifica o hook do kit nos arquivos de configuração dos agentes. */
     private const string HOOK = 'rigor-hook-stop';
 
     /** @var list<Acao> */
@@ -44,12 +43,16 @@ final class Instalador
         private readonly bool $simular = false,
         private readonly array $agentes = ['claude', 'codex'],
         private readonly string $perfil = 'completo',
+        private readonly bool $stop = false,
     ) {
         if ([] !== array_diff($agentes, self::AGENTES)) {
             throw new \InvalidArgumentException('Agente inválido. Use '.implode(', ', self::AGENTES).' ou nenhum.');
         }
         if (!\in_array($perfil, ['essencial', 'completo'], true)) {
             throw new \InvalidArgumentException('Perfil inválido. Use essencial ou completo.');
+        }
+        if ($stop && [] === array_intersect($agentes, ['claude', 'codex'])) {
+            throw new \InvalidArgumentException('--stop requer Claude Code ou Codex em --agentes.');
         }
     }
 
@@ -68,12 +71,7 @@ final class Instalador
             }
         }
         $this->skills();
-        if (\in_array('claude', $this->agentes, true)) {
-            $this->hookDoClaude();
-        }
-        if (\in_array('codex', $this->agentes, true)) {
-            $this->hookDoCodex();
-        }
+        $this->configurarHooks();
         $this->scriptsDoComposer();
         $this->formatacaoDoComposer();
 
@@ -187,64 +185,99 @@ final class Instalador
         }
     }
 
-    private function hookDoClaude(): void
+    private function configurarHooks(): void
     {
-        $this->acrescentarHook('.claude/settings.json', [
+        $comando = [
             'type' => 'command',
             'command' => self::comandoDoHook(),
             'timeout' => 300,
-            'statusMessage' => 'Rodando a verificação no que mudou...',
-        ]);
+        ];
+        $this->configurarHook(
+            '.claude/settings.json',
+            $this->stop && \in_array('claude', $this->agentes, true)
+                ? $comando + ['statusMessage' => 'Rodando a verificação no que mudou...']
+                : null,
+        );
+        $this->configurarHook(
+            '.codex/hooks.json',
+            $this->stop && \in_array('codex', $this->agentes, true) ? $comando : null,
+        );
     }
 
-    /** O Codex roda o hook na pasta da sessão, que pode ser uma subpasta: o caminho parte da raiz do git. */
-    private function hookDoCodex(): void
-    {
-        $this->acrescentarHook('.codex/hooks.json', [
-            'type' => 'command',
-            'command' => self::comandoDoHook(),
-            'timeout' => 300,
-        ]);
-    }
-
-    /** @param array<string, string|int> $comando */
-    private function acrescentarHook(string $relativo, array $comando): void
+    /** @param array<string, string|int>|null $comando null remove só o hook do kit */
+    private function configurarHook(string $relativo, ?array $comando): void
     {
         $caminho = $this->projeto.'/'.$relativo;
         $existia = is_file($caminho);
+        if (!$existia && null === $comando) {
+            return;
+        }
+
         $texto = $existia ? (string) file_get_contents($caminho) : '{}';
         $config = json_decode($texto);
         if (!$config instanceof \stdClass) {
-            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'não é um objeto JSON válido: acrescente o hook Stop à mão (modelo no README do kit)');
+            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, 'não é um objeto JSON válido: confira a configuração do hook Stop à mão');
 
             return;
         }
-        $config->hooks ??= new \stdClass();
-        if (!$config->hooks instanceof \stdClass) {
-            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, '"hooks" não é um objeto: acrescente o hook Stop à mão');
+
+        $hooks = $config->hooks ?? new \stdClass();
+        if (!$hooks instanceof \stdClass) {
+            $this->acoes[] = new Acao(Acao::DIFERE, $relativo, '"hooks" não é um objeto: confira a configuração do hook Stop à mão');
 
             return;
         }
-        $stop = $config->hooks->Stop ?? [];
+
+        $stop = $hooks->Stop ?? [];
         if (!\is_array($stop)) {
             $this->acoes[] = new Acao(Acao::DIFERE, $relativo, '"Stop" não é uma lista: confira o hook à mão');
 
             return;
         }
+
         $encontrou = false;
-        foreach ($stop as $grupo) {
+        foreach ($stop as $indice => $grupo) {
             if (!$grupo instanceof \stdClass || !\is_array($grupo->hooks ?? null)) {
                 continue;
             }
-            foreach ($grupo->hooks as $indice => $hook) {
-                if ($hook instanceof \stdClass && \is_string($hook->command ?? null) && str_contains($hook->command, self::HOOK)) {
-                    // Atualiza só a entrada gerenciada pelo kit; preserva os hooks do projeto.
-                    $grupo->hooks[$indice] = (object) $comando;
-                    $encontrou = true;
+            $alterouGrupo = false;
+            foreach ($grupo->hooks as $posicao => $hook) {
+                if (!self::hookDoKit($hook)) {
+                    continue;
+                }
+                if (null !== $comando && !$encontrou) {
+                    $grupo->hooks[$posicao] = (object) $comando;
+                } else {
+                    unset($grupo->hooks[$posicao]);
+                    $alterouGrupo = true;
+                }
+                $encontrou = true;
+            }
+            if ($alterouGrupo) {
+                if ([] === $grupo->hooks) {
+                    unset($stop[$indice]);
+                } else {
+                    $grupo->hooks = array_values($grupo->hooks);
                 }
             }
         }
-        $config->hooks->Stop = $encontrou ? $stop : [...$stop, (object) ['hooks' => [(object) $comando]]];
+
+        if (null !== $comando) {
+            if (!$encontrou) {
+                $stop[] = (object) ['hooks' => [(object) $comando]];
+            }
+            $config->hooks = $hooks;
+            $hooks->Stop = array_values($stop);
+        } elseif (!$encontrou) {
+            return;
+        } elseif ([] !== $stop) {
+            $hooks->Stop = array_values($stop);
+        } else {
+            unset($hooks->Stop);
+            if ([] === get_object_vars($hooks)) {
+                unset($config->hooks);
+            }
+        }
 
         if (json_decode($texto) == $config) {
             $this->acoes[] = new Acao(Acao::IGUAL, $relativo, 'hook Stop do kit');
@@ -253,7 +286,22 @@ final class Instalador
         }
 
         $this->gravar($caminho, json_encode($config, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR)."\n");
-        $this->acoes[] = new Acao($existia ? Acao::ATUALIZADO : Acao::CRIADO, $relativo, 'hook Stop do kit');
+        $this->acoes[] = new Acao(
+            $existia ? Acao::ATUALIZADO : Acao::CRIADO,
+            $relativo,
+            null === $comando ? 'hook Stop do kit removido' : 'hook Stop do kit',
+        );
+    }
+
+    private static function hookDoKit(mixed $hook): bool
+    {
+        return $hook instanceof \stdClass
+            && 'command' === ($hook->type ?? null)
+            && \in_array($hook->command ?? null, [
+                self::comandoDoHook(),
+                '"$CLAUDE_PROJECT_DIR"/vendor/bin/'.self::HOOK,
+                'php "$(git rev-parse --show-toplevel)/vendor/bin/'.self::HOOK.'"',
+            ], true);
     }
 
     /** Sem expansão $() ou variáveis do shell: funciona em Bash, cmd e PowerShell, inclusive em subpastas. */

@@ -59,13 +59,11 @@ code, or ask before changing the rule.
 
 ## Harness portability
 
-The current agent must have repository and terminal access. Skills do not install hooks. If
-there is no configured, trusted and working Stop hook in this harness, explicitly run
-`php vendor/bin/rigor-verificar` before completing tasks with checked files changed. Keep full
-CI independent of the agent. Report failures or blocked checks accurately. Preserve the
-project's chosen checks, runner and platform; optional tools are not mandatory merely because
-they appear below. In PowerShell use `$env:NAME` for temporary variables and restore the old
-value afterwards; use `php vendor/bin/...` in terminals and `@php` in Composer scripts.
+The current agent must have repository and terminal access. Run the affected tests as you
+implement and run the review check when the requested change is ready for review. Report
+failures or blocked checks accurately. Preserve the project's chosen checks, runner and
+platform. In PowerShell use `$env:NAME` for temporary variables and restore the old value
+afterwards. Use `php vendor/bin/...` in terminals and `@php` in Composer scripts.
 
 Traceability validates ID references and scenario syntax. It cannot establish that each
 scenario has correct assertions; human review of specifications, tests and risky code remains
@@ -110,8 +108,6 @@ the project's runner, analysis levels and rollout choices; do not enable global 
 mutation or migrations merely by updating the kit. These project choices take precedence over
 the default commands below.
 
-Two levels, so the end of a turn stays fast and the slow parts still run on every push:
-
 Optional formatting: place `@php vendor/bin/rigor-formatar` first in `check:rapido`.
 It runs the project's `formatar` script locally and `formatar:verificar` when `CI` is set
 (except empty, `0`, or `false`). The CI script must check without writing and fail on drift.
@@ -119,19 +115,17 @@ Without `formatar`, nothing runs; with it, a missing CI script fails the CI chec
 Preserve the project's formatter and style. The full green fingerprint includes files after
 formatting, so the next unchanged turn skips the check.
 
-- **`composer check:rapido`, at the end of every turn.** Lints, PHPStan, php-cs-fixer
-  `--dry-run`, JS lint and tests if the project has them, and the whole PHPUnit suite in
-  parallel without coverage. The agent's Stop hook (Claude Code: `.claude/settings.json`;
-  Codex: `.codex/hooks.json`) runs it through `vendor/bin/rigor-verificar`, which skips it when
-  no checked file changed since the last green run (fingerprint in `var/check/`). When the
-  project sets `extra.rigor.verificar.leve` and every file changed since the last full green
-  run matches its `arquivos` (layout: templates, styles, front-end), the hook runs the light
-  command instead; that is enough for a layout-only turn, so don't run `check:rapido` by hand on
-  top of it. The full command still runs on the next turn that touches anything else, on the
-  `pre-push` and in the CI. If it fails,
-  the turn goes on until it is green: fix the cause; never disable the hook
-  (`VERIFICAR_DESLIGADO=1`) or work around it, that is the user's call only. Full log in
-  `var/check/ultimo.log`. The git `pre-push` hook (`.githooks/pre-push`) runs the same check.
+- **During implementation:** run the affected test file, suite or group with `composer test --`.
+  Intermediate updates, questions and requests for spec approval can end with focused results.
+- **Ready for review:** run `php vendor/bin/rigor-verificar` before handing off an implemented
+  change that touched checked files, even without a push. It runs the configured review check (by default
+  `composer check:rapido`) and reuses a passing result for unchanged checked content. The
+  default check includes project lints, PHPStan and the PHP suite without coverage.
+  Fix failures or report the blocking error from `var/check/ultimo.log`.
+- **Autonomous sessions (opt-in):** when the user enables the Stop hook, the agent runs the
+  verifier when it attempts to end a turn. If configured, layout-only changes can use
+  `extra.rigor.verificar.leve`; a light pass does not replace the review check.
+  The optional Git `pre-push` hook can also run the review check before a push.
 - **`composer check`, in the CI** (`.github/workflows/ci.yml`, calling the kit's reusable
   workflow on every push to the main branch and every PR): `check:rapido` plus the slow parts
   (production build). When the project has Doctrine Migrations, a second job runs every
@@ -151,8 +145,7 @@ before the quick check and use `preparo-cobertura` and `preparo-mutacao` for the
 build of the coverage and mutation jobs; `preparo` remains the shared fallback for existing
 consumers.
 
-Run `composer check:rapido` yourself before saying a task is done; after a push, check that the
-CI went green.
+Require the PR checks before merging and report their observed result separately from local tests.
 
 **Mutation testing** (Infection, `infection.json5`, `src/Domain` and `src/Entity`; skill
 `rigor-mutacao`) changes the code (flips a condition, drops a call, shifts a boundary) and runs

@@ -9,7 +9,7 @@ description: Write or update traceable business specifications and tests in a Sy
 
 Requer acesso aos arquivos e ao terminal do projeto, PHP 8.4+, Git e o pacote Composer `christopherpersaud/kit-rigor-symfony` compatível com PHPUnit 12/13. A entrega por Agensi/MCP fornece as instruções; não instala a biblioteca ou hooks. Localize o pacote com `composer show christopherpersaud/kit-rigor-symfony --path`. Na ausência dele, explique o requisito e instale somente quando isso fizer parte do pedido autorizado. Preserve as decisões do projeto e não atualize sua plataforma por consequência.
 
-Sem hook Stop confiável e funcional no agente atual, rode `php vendor/bin/rigor-verificar` explicitamente antes de concluir mudanças em arquivos verificados. Se faltar acesso ao repositório ou execução, ofereça somente análise/spec e indique quais checks não foram executados.
+Durante a implementação, rode os testes afetados. Quando a mudança estiver pronta para revisão, rode `php vendor/bin/rigor-verificar`. Se faltar acesso ao repositório ou execução, ofereça somente análise/spec e indique quais checks não foram executados.
 
 
 A rastreabilidade confere referências a IDs, não a correção das asserções nem a prova de cada cenário. A revisão humana permanece necessária. A spec é o contrato. A aprovação da spec é o ponto de decisão sobre o comportamento de negócio. Depois de aprovado,
@@ -49,7 +49,7 @@ os valores esperados dos testes já estão fixados pelos cenários, e não pelo 
    registre a decisão na memória do projeto, apontando o ID.
 6. **Valide:**
    - `composer test -- --group ABC-NN` roda o que prova a regra;
-   - o `composer check:rapido` passa, e é ele que roda a `RastreabilidadeTest`.
+   - rode a `RastreabilidadeTest` durante a implementação e confirme o check de revisão antes de entregar.
 
 ## Bug
 

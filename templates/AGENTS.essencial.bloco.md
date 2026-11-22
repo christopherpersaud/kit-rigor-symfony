@@ -12,14 +12,14 @@ implement and test the approved behavior. Traceability checks references to IDs;
 prove that the assertions are correct or that every scenario is tested. Human review remains
 necessary. Never regenerate golden files merely to make a failing test pass.
 
-Run `php vendor/bin/rigor-verificar` before completing a task that changed checked files.
-If no trusted working Stop hook is installed in the current harness, run it explicitly.
-Fix failures or report a concrete blocker; do not describe a skipped check as passed.
-Preserve the project's full CI check independently of the agent and its hooks.
+Run focused tests while implementing, using the project's test runner and the smallest
+relevant file, suite or group. Run `php vendor/bin/rigor-verificar` when an implemented
+change is ready for review, even without a push. Report failures or blocked checks.
+Keep the project's full CI check on pull requests. Require it to pass before merging.
 
-The portable skills live in `.agents/skills/`. Optional Claude, Codex, Gemini and Copilot
-integration files point to these project instructions. Selecting another agent on a later
-installation does not remove existing integration files; inspect them before disabling any.
+The portable skills live in `.agents/skills/`. Enable the Claude Code or Codex Stop hook
+with `vendor/bin/rigor instalar --stop` for autonomous sessions that need blocking
+verification at the end of the turn.
 
 Optional formatting uses `@php vendor/bin/rigor-formatar` first in `check:rapido`: it runs
 `formatar` locally and the non-writing `formatar:verificar` in CI. Without a `formatar`

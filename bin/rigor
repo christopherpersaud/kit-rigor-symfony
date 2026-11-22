@@ -18,11 +18,12 @@ $argumentos = is_array($_SERVER['argv'] ?? null) ? array_values(array_filter($_S
 
 $comando = $argumentos[1] ?? '';
 if ('instalar' !== $comando) {
-    fwrite(STDERR, "Uso: php vendor/bin/rigor instalar [--simular] [--agentes=claude,codex|nenhum] [--perfil=essencial|completo]\n");
+    fwrite(STDERR, "Uso: php vendor/bin/rigor instalar [--simular] [--stop] [--agentes=claude,codex|nenhum] [--perfil=essencial|completo]\n");
     exit('' === $comando || in_array($comando, ['-h', '--help', 'ajuda'], true) ? 0 : 1);
 }
 
 $simular = in_array('--simular', $argumentos, true);
+$stop = in_array('--stop', $argumentos, true);
 $agentes = ['claude', 'codex'];
 $perfil = 'completo';
 try {
@@ -32,11 +33,11 @@ try {
             $agentes = 'nenhum' === $lista ? [] : array_values(array_unique(explode(',', $lista)));
         } elseif (str_starts_with($argumento, '--perfil=')) {
             $perfil = substr($argumento, strlen('--perfil='));
-        } elseif ('--simular' !== $argumento) {
+        } elseif (!in_array($argumento, ['--simular', '--stop'], true)) {
             throw new InvalidArgumentException('Opção desconhecida: '.$argumento);
         }
     }
-    $acoes = (new Instalador(Config::doProjeto()->raiz, dirname(__DIR__), $simular, $agentes, $perfil))->instalar();
+    $acoes = (new Instalador(Config::doProjeto()->raiz, dirname(__DIR__), $simular, $agentes, $perfil, $stop))->instalar();
 } catch (InvalidArgumentException $erro) {
     fwrite(STDERR, $erro->getMessage()."\n");
     exit(2);
@@ -49,5 +50,5 @@ foreach ($acoes as $acao) {
 
 $revisar = array_filter($acoes, static fn ($acao) => $acao->pedeRevisao());
 echo "\n", [] === $revisar
-    ? "Pronto. Rode composer check:rapido.\n"
+    ? "Pronto. Para validar a instalação, rode php vendor/bin/rigor-verificar --tudo.\n"
     : sprintf("%d item(ns) pedem revisão à mão (difere/falta). A skill rigor-instalar guia o ajuste.\n", count($revisar));

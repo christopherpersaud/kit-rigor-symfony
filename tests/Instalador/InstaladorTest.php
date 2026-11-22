@@ -16,13 +16,15 @@ final class InstaladorTest extends TestCase
     private const string KIT = __DIR__.'/../..';
     private const string COMANDO_HOOK = 'php -r "require trim(shell_exec(\'git rev-parse --show-toplevel\')).\'/vendor/bin/rigor-hook-stop\';"';
 
-    public function testProjetoVazioRecebeModelosBlocoSkillsEHooks(): void
+    public function testProjetoVazioRecebeModelosBlocoESkillsSemHookStop(): void
     {
         $acoes = $this->instalar();
 
-        foreach (['phpstan.dist.neon', 'tests/Spec/RastreabilidadeTest.php', '.github/workflows/ci.yml', 'AGENTS.md', 'CLAUDE.md', '.agents/skills/rigor-spec', '.claude/skills/rigor-spec', '.claude/settings.json', '.codex/hooks.json'] as $caminho) {
+        foreach (['phpstan.dist.neon', 'tests/Spec/RastreabilidadeTest.php', '.github/workflows/ci.yml', 'AGENTS.md', 'CLAUDE.md', '.agents/skills/rigor-spec', '.claude/skills/rigor-spec'] as $caminho) {
             self::assertSame(Acao::CRIADO, $acoes[$caminho]->tipo ?? null, $caminho);
         }
+        self::assertFileDoesNotExist($this->pasta.'/.claude/settings.json');
+        self::assertFileDoesNotExist($this->pasta.'/.codex/hooks.json');
         self::assertStringContainsString(Instalador::INICIO, $this->ler('AGENTS.md'));
         self::assertStringContainsString('## Specs: the module docs are the contract', $this->ler('AGENTS.md'));
         self::assertSame("# CLAUDE.md\n\n@AGENTS.md\n", $this->ler('CLAUDE.md'));
@@ -33,7 +35,7 @@ final class InstaladorTest extends TestCase
 
     public function testHooksNoFormatoDeCadaAgente(): void
     {
-        $this->instalar();
+        $this->instalar(stop: true);
 
         self::assertSame(['hooks' => ['Stop' => [['hooks' => [[
             'type' => 'command',
@@ -98,7 +100,7 @@ final class InstaladorTest extends TestCase
     {
         $this->gravar('.claude/settings.json', '{"permissions": {"allow": ["Bash(ls)"]}, "env": {}, "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "outro.sh"}]}]}}');
 
-        self::assertSame(Acao::ATUALIZADO, $this->instalar()['.claude/settings.json']->tipo);
+        self::assertSame(Acao::ATUALIZADO, $this->instalar(stop: true)['.claude/settings.json']->tipo);
 
         $settings = $this->ler('.claude/settings.json');
         self::assertStringContainsString('"env": {}', $settings, 'Objeto vazio continua objeto.');
@@ -212,18 +214,66 @@ final class InstaladorTest extends TestCase
         }
     }
 
-    public function testAtualizaHookAntigoPreservandoOutrosHooks(): void
+    public function testAtualizaHookAntigoSoParaOAgenteEscolhido(): void
     {
-        $this->gravar('.codex/hooks.json', '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"outro"},{"type":"command","command":"php antigo/rigor-hook-stop"}]}]}}');
-        $this->instalar();
+        $this->gravar('.codex/hooks.json', <<<'JSON'
+            {"hooks":{"Stop":[{"hooks":[
+                {"type":"command","command":"outro"},
+                {"type":"command","command":"php \"$(git rev-parse --show-toplevel)/vendor/bin/rigor-hook-stop\""}
+            ]}]}}
+            JSON);
 
-        $config = json_decode($this->ler('.codex/hooks.json'), true);
-        self::assertIsArray($config);
-        $json = json_encode($config, \JSON_THROW_ON_ERROR);
-        self::assertStringContainsString('outro', $json);
-        self::assertStringNotContainsString('antigo/', $json);
-        self::assertSame(1, substr_count($json, 'rigor-hook-stop'));
-        self::assertSame(Acao::IGUAL, $this->instalar()['.codex/hooks.json']->tipo);
+        $acoes = $this->instalar(stop: true, agentes: ['codex']);
+
+        self::assertSame(Acao::ATUALIZADO, $acoes['.codex/hooks.json']->tipo);
+        self::assertFileDoesNotExist($this->pasta.'/.claude/settings.json');
+        self::assertSame(['hooks' => ['Stop' => [['hooks' => [
+            ['type' => 'command', 'command' => 'outro'],
+            ['type' => 'command', 'command' => self::COMANDO_HOOK, 'timeout' => 300],
+        ]]]]], json_decode($this->ler('.codex/hooks.json'), true));
+        self::assertSame(Acao::IGUAL, $this->instalar(stop: true, agentes: ['codex'])['.codex/hooks.json']->tipo);
+    }
+
+    public function testAtualizacaoRemoveSomenteEntradasStopDoKit(): void
+    {
+        $this->instalar(stop: true);
+        $settings = <<<'JSON'
+            {"env":{},"hooks":{"Stop":[
+                {"hooks":[
+                    {"type":"command","command":"check-do-projeto rigor-hook-stop"},
+                    {"type":"command","command":"\"$CLAUDE_PROJECT_DIR\"/vendor/bin/rigor-hook-stop"},
+                    {"type":"command","command":"outro"},
+                    {"type":"command","command":"\"$CLAUDE_PROJECT_DIR\"/vendor/bin/rigor-hook-stop"}
+                ]},
+                {"hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR\"/vendor/bin/rigor-hook-stop"}]}
+            ],"PostToolUse":[]}}
+            JSON;
+        $this->gravar('.claude/settings.json', $settings);
+        $antes = $this->conteudos();
+
+        $simulacao = new Instalador($this->pasta, self::KIT, simular: true)->instalar();
+        $remocoes = array_values(array_filter($simulacao, static fn (Acao $acao) => 'hook Stop do kit removido' === $acao->detalhe));
+        self::assertCount(2, $remocoes);
+        self::assertSame($antes, $this->conteudos());
+
+        $acoes = $this->instalar(agentes: []);
+        self::assertSame(Acao::ATUALIZADO, $acoes['.claude/settings.json']->tipo);
+        self::assertSame(Acao::ATUALIZADO, $acoes['.codex/hooks.json']->tipo);
+
+        $claude = $this->ler('.claude/settings.json');
+        self::assertStringContainsString('"env": {}', $claude);
+        self::assertSame(['env' => [], 'hooks' => [
+            'Stop' => [['hooks' => [
+                ['type' => 'command', 'command' => 'check-do-projeto rigor-hook-stop'],
+                ['type' => 'command', 'command' => 'outro'],
+            ]]],
+            'PostToolUse' => [],
+        ]], json_decode($claude, true));
+        self::assertSame("{}\n", $this->ler('.codex/hooks.json'));
+
+        $this->instalar(agentes: []);
+        self::assertSame($claude, $this->ler('.claude/settings.json'));
+        self::assertSame("{}\n", $this->ler('.codex/hooks.json'));
     }
 
     public function testComandoDoHookRecebeJsonEmSubpastaDeProjetoComEspacos(): void
@@ -235,7 +285,7 @@ final class InstaladorTest extends TestCase
         fclose($pipes[1]);
         fclose($pipes[2]);
         self::assertSame(0, proc_close($git));
-        new Instalador($projeto, self::KIT)->instalar();
+        new Instalador($projeto, self::KIT, stop: true)->instalar();
         mkdir($projeto.'/vendor/bin', 0o777, true);
         file_put_contents($projeto.'/vendor/bin/rigor-hook-stop', '<?php echo stream_get_contents(STDIN);');
 
@@ -251,11 +301,15 @@ final class InstaladorTest extends TestCase
         self::assertSame('{"session_id":"teste"}', $saida);
     }
 
-    /** @return array<string, Acao> por caminho */
-    private function instalar(): array
+    /**
+     * @param list<string> $agentes
+     *
+     * @return array<string, Acao> por caminho
+     */
+    private function instalar(bool $stop = false, array $agentes = ['claude', 'codex']): array
     {
         $acoes = [];
-        foreach (new Instalador($this->pasta, (string) realpath(self::KIT))->instalar() as $acao) {
+        foreach (new Instalador($this->pasta, (string) realpath(self::KIT), agentes: $agentes, stop: $stop)->instalar() as $acao) {
             $acoes[$acao->caminho] = $acao;
         }
 
