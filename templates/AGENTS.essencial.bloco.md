@@ -20,9 +20,11 @@ after staging and before committing. Report failures or monitored files that dif
 the Git index. Keep unrelated changes out of the commit.
 Keep the project's full CI check on pull requests. Require it to pass before merging.
 
-The portable skills live in `.agents/skills/`. Enable the Claude Code or Codex Stop hook
-with `vendor/bin/rigor instalar --stop` for autonomous sessions that need blocking
-verification at the end of the turn.
+The portable skills live in `.agents/skills/`. Use `rigor-instalar` when updating the kit or
+changing the profile or optional checks. Explain the choices to the user before changing them.
+Enable the Claude Code or Codex Stop hook with `vendor/bin/rigor instalar --stop` for autonomous
+sessions that need blocking verification at the end of the turn. Pass the chosen profile and
+agents explicitly.
 
 Optional formatting uses `@php vendor/bin/rigor-formatar` first in `check:rapido`: it runs
 `formatar` locally and the non-writing `formatar:verificar` in CI. Without a `formatar`

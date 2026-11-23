@@ -2,6 +2,8 @@
 
 ## Não publicado
 
+- A skill `rigor-instalar` apresenta os dois perfis, explica PHPStan e Mago e confirma as
+  opções em aberto com o usuário antes de instalar. O README também descreve as escolhas.
 - Testes focados durante a implementação e a revisão. O check rápido roda no pre-commit
   do Git e o workflow do PR roda a validação completa. O instalador migra o pre-push
   original do kit e preserva os hooks personalizados.

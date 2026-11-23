@@ -25,8 +25,6 @@ Confirme PHP 8.4+, Composer 2.2+, Git e compatibilidade com PHPUnit 12 ou 13. Co
 - **Driver de cobertura:** sem pcov ou xdebug, a cobertura e a mutação não rodam na máquina
   (no CI, o workflow instala o pcov). Avise o usuário em vez de presumir que estão verdes.
 
-Escolha o perfil: **essencial** para specs e testes dourados, ou **completo** para os modelos de análise, arquitetura, cobertura e CI, ajustados ao projeto. Novas adoções começam pelo essencial quando o pedido não definir outro escopo. Uma atualização preserva o perfil e os agentes anteriormente escolhidos.
-
 - **Versões e componentes:** leia `composer.json` e `symfony.lock` para saber a versão do PHP e
   do Symfony e o que está instalado: Doctrine ORM, Doctrine Migrations, Twig, Encore/AssetMapper,
   testes JS, `dama/doctrine-test-bundle`, `brianium/paratest`.
@@ -34,7 +32,36 @@ Escolha o perfil: **essencial** para specs e testes dourados, ou **completo** pa
   `.codex/hooks.json`, `phpstan*.neon`, `.php-cs-fixer.dist.php`, `.github/workflows/`.
 - **Git:** confira se `git status` está limpo, para a mudança do kit ficar separada do resto.
 
-## 2. Instalar o pacote e rodar o instalador
+## 2. Apresentar as escolhas antes de instalar
+
+Na primeira instalação, explique ao usuário em linguagem simples o que cada perfil entrega e
+quais verificações opcionais fazem sentido para o projeto. Faça isso antes de rodar
+`composer config`, `composer require` ou `vendor/bin/rigor instalar` com gravação.
+
+| Perfil | O que entrega |
+|---|---|
+| **Essencial** | Specs rastreáveis com PHPUnit, testes dourados para comparar saídas com exemplos aprovados, instruções e skills para o agente e modelo de hook Git para o check rápido antes do commit. Usa os checks existentes no projeto. |
+| **Completo** | Tudo do essencial e modelos para análise estática com PHPStan, regras de arquitetura com phpat, cobertura mínima, testes de mutação com Infection e CI no GitHub Actions. A instalação das ferramentas e a ativação de cada verificação dependem da escolha do usuário e da compatibilidade com o projeto. |
+
+Explique que o **PHPStan** encontra problemas de tipos e chamadas inválidas no PHP sem precisar
+executar a aplicação. No perfil completo, pergunte se o usuário quer ativar essa
+análise e quais verificações adicionais quer adotar. Explique que o **Mago** formata o código
+PHP e pode conferir o estilo no CI. A formatação é uma escolha independente, disponível com
+qualquer perfil. Preserve o formatador existente ou apresente o Mago como opção se o projeto
+ainda não usa um.
+
+Na mesma conversa, informe quais ferramentas e verificações serão incluídas e quais ficarão
+de fora da opção proposta. Apresente as integrações de agentes quando forem relevantes. O
+hook `Stop` de Claude Code ou Codex é opcional, separado do pre-commit do Git, e só é ativado
+quando o usuário quer verificações que possam bloquear o fim do turno.
+
+Um pedido genérico como “instale o kit” deixa as escolhas em aberto. Pergunte qual perfil o
+usuário quer e confirme os opcionais que ainda estiverem indefinidos antes de instalar. Se ele
+já escolheu ou delegou a decisão, apresente o que será incluído e siga sem pedir a mesma
+confirmação. Na atualização, preserve o perfil, as ferramentas e as integrações já escolhidas.
+Pergunte apenas sobre as mudanças que o usuário ainda não definiu.
+
+## 3. Instalar o pacote e rodar o instalador
 
 Enquanto o pacote não está no Packagist, o projeto declara o repositório antes:
 `composer config repositories.kit-rigor vcs https://github.com/christopherpersaud/kit-rigor-symfony`.
@@ -44,7 +71,9 @@ composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5" --dry-run
 composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5"
 ```
 
-No perfil essencial, não instale ferramentas adicionais além das dependências do pacote. No completo, escolha somente as ferramentas das verificações adotadas, preservando as versões compatíveis e o executor do projeto. A lista abaixo é uma referência, não uma ordem para instalar tudo:
+Instale as ferramentas das verificações escolhidas, preservando as versões compatíveis e o
+executor do projeto. No essencial, mantenha as dependências do kit e o formatador que tiver sido
+escolhido. No completo, consulte esta lista de dependências opcionais:
 
 - `phpstan/phpstan`
 - `phpstan/extension-installer`
@@ -76,9 +105,14 @@ Leia a saída:
 - **`igual`:** o arquivo já estava como o modelo.
 - **`difere` e `falta`:** pedem o seu ajuste, nos passos seguintes.
 
-## 3. Ajustar ao projeto
+## 4. Ajustar ao projeto
 
-No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` com os checks realmente adotados e `check` como a verificação completa independente do agente. Mantenha `tests/Spec/RastreabilidadeTest.php` na suíte; os testes dourados usam `KitRigor\Dourado`. Não aplique as configurações de arquitetura, cobertura ou mutação abaixo sem adoção explícita. No completo, adapte as opções pertinentes:
+Nos dois perfis, configure `test` com o PHPUnit existente, `check:rapido` com os checks adotados
+e `check` como a verificação completa independente do agente. Mantenha
+`tests/Spec/RastreabilidadeTest.php` na suíte. Os testes dourados usam `KitRigor\Dourado`.
+No completo, o instalador copia os modelos do perfil. Revise os arquivos novos e adapte os
+scripts e o CI para executar somente as verificações escolhidas. Mantenha as configurações
+que o projeto já usa.
 
 - **`composer.json`, scripts:** use `templates/referencia/composer-scripts.json` do kit.
   - Os comandos do modelo não são copiados literalmente: use `@php vendor/bin/...` nos scripts Composer, preserve o bundler e o runner do projeto e substitua expressões de shell específicas do sistema. Não imponha ParaTest no Windows; use o PHPUnit sequencial se o runner paralelo não suportar o ambiente.
@@ -88,9 +122,9 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
     os caminhos e o estilo; configure `formatar:verificar` para conferir sem escrever e ponha
     `@php vendor/bin/rigor-formatar` primeiro em `check:rapido`. Localmente ele formata; com
     `CI` definido (exceto vazio, `0` ou `false`), só verifica. Sem `formatar`, não faz nada.
-    Não instale Mago por padrão nem acrescente `@formatar` diretamente ao check usado no CI.
-    Se o usuário escolher o Mago e o projeto não tiver `mago.toml`, ofereça
+    Se o usuário escolher o Mago e o projeto não tiver `mago.toml`, use
     `templates/referencia/mago.toml` como ponto de partida, ajustando `php-version` e `paths`.
+    Mantenha a chamada ao formatador por meio de `rigor-formatar` no check compartilhado com o CI.
     O instalador só relata o ajuste; não sobrescreve scripts. Na adoção por escopo, inclua a
     chamada também em `check:ci`, sem ampliar o `check:leve` para formatar PHP.
   - No `mutacao:diff`, troque `master` pela branch principal do projeto.
@@ -208,13 +242,13 @@ No perfil essencial, configure `test` com o PHPUnit existente, `check:rapido` co
   exige o escopo `workflow` (`gh auth refresh -h github.com -s workflow`). Commit e push só com
   pedido do usuário.
 
-## 4. Specs
+## 5. Specs
 
 - **Sem `docs/modulos/modulo-*.md`:** a rastreabilidade passa vazia. Converter os módulos em
   spec é trabalho à parte, com a skill `rigor-spec`, um módulo por vez e com aprovação do usuário.
 - **Docs que já existem:** não invente regras. Proponha a conversão.
 
-## 5. Validar
+## 6. Validar
 
 ```bash
 php vendor/bin/rigor-verificar --tudo

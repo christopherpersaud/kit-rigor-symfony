@@ -97,6 +97,9 @@ failing test pass.
 
 ## Checks
 
+Use `rigor-instalar` when updating the kit or changing the profile or optional checks.
+Explain the choices to the user before changing them.
+
 **Optional scoped adoption:** if the project chose `extra.rigor.verificar.escopo`, update its
 manifest for each task with individual changed files, affected regression tests and the
 traceability test. The project chooses the scope manually. Use the light command for layout

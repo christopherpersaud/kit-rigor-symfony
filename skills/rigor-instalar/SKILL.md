@@ -12,7 +12,14 @@ without upgrading the application's platform or changing its architecture automa
 
 Follow the [installation guide](references/instalacao.md) for the requested setup or update.
 It covers the essential/full profiles, optional harness integrations, project-specific checks
-and validation. Resolve all template paths from the installed Composer package, not from this
+and validation. On a first installation, explain both profiles and the available optional checks
+in plain language before changing the project. Name PHPStan (static analysis) and Mago (PHP
+formatting) explicitly. Ask for any profile or tool choices the user has left open and wait
+for their answer before installing. A generic request to install the kit leaves those choices
+open. On updates, preserve the choices already made and ask about any new or changed checks
+the user has left open.
+
+Resolve all template paths from the installed Composer package, not from this
 skill's directory. When delivered through Agensi/MCP, the skill is guidance; Composer installs
 the executable library into the target repository. Never run its PHP entrypoints as isolated
 MCP scripts or copy vendor dependencies into the skill distribution.

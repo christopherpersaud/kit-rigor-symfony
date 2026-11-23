@@ -60,7 +60,12 @@ O caminho de uma primeira instalação, na ordem. Os detalhes de cada passo est�
      `Deprecation::enableWithTriggerError()` (veja
      [`templates/referencia/LEIA-ME.md`](templates/referencia/LEIA-ME.md)).
 
-3. **Instale e simule** antes de gravar:
+3. **Escolha o perfil e as verificações.** Veja [Perfis e ferramentas opcionais](#perfis-e-ferramentas-opcionais).
+   Se pedir a instalação a um agente, ele apresenta as opções e confirma as escolhas em aberto
+   antes de alterar o projeto.
+
+4. **Instale o pacote e simule o instalador.** O exemplo usa o perfil essencial com as skills
+   compartilhadas:
 
    ```bash
    composer config repositories.kit-rigor vcs https://github.com/christopherpersaud/kit-rigor-symfony
@@ -70,8 +75,7 @@ O caminho de uma primeira instalação, na ordem. Os detalhes de cada passo est�
 
    Rode de novo sem `--simular`, com o perfil e os agentes escolhidos.
 
-4. **Peça ao agente: "instale o kit de rigor".** A skill mede o projeto e pergunta o que é
-   decisão sua. No perfil completo, conte com estes achados num projeto legado:
+   Se adotar as verificações do perfil completo em um projeto legado, considere:
    - **PHPStan:** o phpstan-doctrine e o phpat valem em qualquer nível, então até o nível 0
      pode reprovar. Separe bug real (DQL com campo inexistente, classe removida) de convenção
      (propriedade nullable em coluna NOT NULL) e comece no maior nível que passa limpo.
@@ -82,12 +86,28 @@ O caminho de uma primeira instalação, na ordem. Os detalhes de cada passo est�
 
 5. **Valide a instalação.** Rode `php vendor/bin/rigor-verificar --tudo`.
 
-6. **Suba o CI.** O token precisa do escopo `workflow` para enviar `.github/workflows/`
+6. **Configure o CI escolhido.** O token precisa do escopo `workflow` para enviar `.github/workflows/`
    (`gh auth refresh -h github.com -s workflow`). Com Encore, configure `preparo-cobertura` e
    `preparo-mutacao` (veja [Cache e builds no CI](#cache-e-builds-no-ci)). Ligue a mutação
    depois do primeiro CI verde.
 
 ## Como instalar num projeto
+
+### Perfis e ferramentas opcionais
+
+| Perfil | O que entrega |
+|---|---|
+| **Essencial** | Specs rastreáveis com PHPUnit, testes dourados para comparar saídas com exemplos aprovados, instruções e skills para o agente e modelo de pre-commit para rodar os checks do projeto. |
+| **Completo** | Tudo do essencial e modelos para PHPStan, regras de arquitetura com phpat, cobertura mínima, mutação com Infection e CI no GitHub Actions. Você escolhe quais ferramentas instalar e quais verificações ativar. |
+
+**PHPStan** analisa o PHP sem executar a aplicação e aponta problemas como tipos
+incompatíveis e chamadas inválidas. É uma opção do perfil completo. **Mago** formata o
+código PHP e pode verificar o estilo no CI. Pode ser adotado com qualquer perfil, ou você
+pode continuar usando o formatador do projeto.
+
+Antes de instalar, a skill [`rigor-instalar`](skills/rigor-instalar/SKILL.md) apresenta os
+dois perfis, explica as ferramentas opcionais e pergunta sobre as escolhas em aberto. Uma
+atualização preserva as escolhas já feitas, salvo se você pedir mudanças.
 
 ### 1. O pacote
 
@@ -105,9 +125,12 @@ composer require --dev "christopherpersaud/kit-rigor-symfony:^0.5"
 
 ### 2. O instalador
 
+Passe o perfil e as integrações escolhidas. Por exemplo, para o perfil essencial com as
+skills compartilhadas:
+
 ```bash
-vendor/bin/rigor instalar --simular
-vendor/bin/rigor instalar
+php vendor/bin/rigor instalar --simular --perfil=essencial --agentes=nenhum
+php vendor/bin/rigor instalar --perfil=essencial --agentes=nenhum
 ```
 
 O instalador preserva arquivos não gerenciados e atualiza somente as peças do próprio kit:
@@ -135,8 +158,6 @@ o instalador não pode decidir sozinho:
 - o bootstrap do banco de teste;
 - as opções do CI.
 
-Ela pergunta antes de tudo o que é decisão sua.
-
 ### Ativar o pre-commit do Git
 
 O instalador copia `.githooks/pre-commit` nos dois perfis. Em cada clone que usa os hooks
@@ -162,10 +183,11 @@ entrar no commit. O hook nunca executa `git add`.
 
 ### Hook Stop para sessões autônomas
 
-Ative na cópia de trabalho que vai usar para a sessão autônoma, escolhendo o agente:
+Ative na cópia de trabalho que vai usar para a sessão autônoma. Use o perfil do projeto e
+selecione o agente. O exemplo usa o perfil essencial com Codex:
 
 ```bash
-php vendor/bin/rigor instalar --agentes=codex --stop
+php vendor/bin/rigor instalar --perfil=essencial --agentes=codex --stop
 ```
 
 O instalador grava `.codex/hooks.json` para Codex e `.claude/settings.json` para Claude Code,
@@ -209,11 +231,8 @@ php vendor/bin/rigor instalar --perfil=completo --agentes=cursor,gemini,copilot,
 A descoberta das skills foi conferida com a documentação dos agentes; não é uma certificação
 por execução de sessões completas em todos eles.
 
-O perfil `essencial` copia o teste de rastreabilidade e o catálogo de módulos, sem modelos
-PHPStan/phpat, cobertura, Infection ou CI. O `completo` preserva o conjunto anterior de modelos;
-a skill ajusta as verificações adotadas. O padrão é o perfil completo, com as instruções do
-Claude Code e as skills compartilhadas do Codex. Repita o perfil e os agentes escolhidos
-nas atualizações.
+Sem os argumentos, o CLI usa o perfil completo com as integrações do Claude Code e do Codex.
+Passe o perfil e os agentes explicitamente na instalação e nas atualizações.
 
 Windows nativo usa `NUL` e caminhos normalizados. Os comandos dos hooks resolvem a raiz pelo
 Git dentro do PHP, sem expansão Bash. Use `php vendor/bin/...` no terminal e `@php` nos scripts

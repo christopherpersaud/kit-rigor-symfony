@@ -11,6 +11,8 @@ ele instala. Ele é público: nada de segredo, dado pessoal ou detalhe de um pro
   ajustar; `templates/AGENTS.bloco.md` é o bloco que vai no AGENTS.md dos projetos.
 - `skills/rigor-*/SKILL.md` seguem o padrão Agent Skills, com integrações opcionais por agente: só `name` e `description` no
   frontmatter.
+- A skill `rigor-instalar` e seu guia orientam a escolha antes da primeira instalação.
+  Mantenha o README alinhado sobre o conteúdo dos perfis e as opções de PHPStan e Mago.
 - Mudou um comportamento: atualize o README, o bloco do AGENTS.md e a skill que falam dele.
 - Mudança que quebra projetos já instalados (classe, método, chave do `extra.rigor`, input do
   workflow) exige versão maior e nota no CHANGELOG.md.
